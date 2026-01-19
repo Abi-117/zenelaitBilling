@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Card from '../../ui/Card';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -11,14 +11,27 @@ const PricingTab = ({ product }) => {
 
   const [variants, setVariants] = useState(
     product?.pricing?.variants || [
-      { id: 1, label: 'Retail', price: '' },
+      { id: 1, label: 'Retail', selling: '', mrp: '' },
+      { id: 2, label: 'Wholesale', selling: '', mrp: '' },
     ]
   );
+
+  const [profitMargins, setProfitMargins] = useState({});
+
+  useEffect(() => {
+    const margins = {};
+    variants.forEach(v => {
+      const variantSelling = parseFloat(v.selling || pricing.selling) || 0;
+      const cost = parseFloat(pricing.cost) || 0;
+      margins[v.id] = cost > 0 ? (((variantSelling - cost) / cost) * 100).toFixed(1) : '0';
+    });
+    setProfitMargins(margins);
+  }, [variants, pricing]);
 
   const addVariant = () => {
     setVariants([
       ...variants,
-      { id: Date.now(), label: '', price: '' },
+      { id: Date.now(), label: '', selling: '', mrp: '' },
     ]);
   };
 
@@ -35,11 +48,15 @@ const PricingTab = ({ product }) => {
   };
 
   const savePricing = () => {
-    console.log({
-      pricing,
-      variants,
-    });
-    alert('Pricing saved');
+    if (!pricing.cost || !pricing.selling || !pricing.mrp) {
+      return alert('Please fill all base pricing fields');
+    }
+    for (let v of variants) {
+      if (!v.label) return alert('Variant label is required');
+    }
+
+    console.log({ pricing, variants, profitMargins });
+    alert('Pricing saved successfully');
   };
 
   return (
@@ -48,7 +65,6 @@ const PricingTab = ({ product }) => {
       {/* Base Pricing */}
       <Card>
         <h3 className="font-semibold mb-4">Base Pricing</h3>
-
         <div className="grid grid-cols-3 gap-4">
           <input
             type="number"
@@ -57,7 +73,6 @@ const PricingTab = ({ product }) => {
             value={pricing.cost}
             onChange={e => setPricing({ ...pricing, cost: e.target.value })}
           />
-
           <input
             type="number"
             className="input"
@@ -65,7 +80,6 @@ const PricingTab = ({ product }) => {
             value={pricing.selling}
             onChange={e => setPricing({ ...pricing, selling: e.target.value })}
           />
-
           <input
             type="number"
             className="input"
@@ -89,32 +103,33 @@ const PricingTab = ({ product }) => {
         </div>
 
         <div className="space-y-3">
-          {variants.map(variant => (
-            <div
-              key={variant.id}
-              className="grid grid-cols-3 gap-3 items-center"
-            >
+          {variants.map(v => (
+            <div key={v.id} className="grid grid-cols-5 gap-3 items-center">
               <input
                 className="input"
                 placeholder="Label (Retail / Wholesale)"
-                value={variant.label}
-                onChange={e =>
-                  updateVariant(variant.id, 'label', e.target.value)
-                }
+                value={v.label}
+                onChange={e => updateVariant(v.id, 'label', e.target.value)}
               />
-
               <input
                 type="number"
                 className="input"
-                placeholder="Price"
-                value={variant.price}
-                onChange={e =>
-                  updateVariant(variant.id, 'price', e.target.value)
-                }
+                placeholder="Selling Price"
+                value={v.selling || pricing.selling}
+                onChange={e => updateVariant(v.id, 'selling', e.target.value)}
               />
-
+              <input
+                type="number"
+                className="input"
+                placeholder="MRP"
+                value={v.mrp || pricing.mrp}
+                onChange={e => updateVariant(v.id, 'mrp', e.target.value)}
+              />
+              <div className="text-slate-500 font-semibold">
+                Profit: {profitMargins[v.id] ?? 0}%
+              </div>
               <button
-                onClick={() => removeVariant(variant.id)}
+                onClick={() => removeVariant(v.id)}
                 className="text-rose-500 hover:bg-rose-50 p-2 rounded"
               >
                 <Trash2 size={14} />
@@ -128,12 +143,11 @@ const PricingTab = ({ product }) => {
       <div className="text-right">
         <button
           onClick={savePricing}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
         >
           Save Pricing
         </button>
       </div>
-
     </div>
   );
 };

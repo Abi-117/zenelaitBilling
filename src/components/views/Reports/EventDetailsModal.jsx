@@ -1,5 +1,6 @@
 // EventDetailsModal.jsx
-import { X } from 'lucide-react';
+import React from "react";
+import { X } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -8,7 +9,7 @@ import autoTable from "jspdf-autotable";
  * @param {Object} event
  */
 const generateInvoicePDF = (event) => {
-  // Convert event to invoice-like structure
+  // Map event to invoice structure
   const invoice = {
     id: event.ref || "N/A",
     date: event.time || new Date().toLocaleDateString(),
@@ -80,12 +81,13 @@ const generateInvoicePDF = (event) => {
   doc.setFont("helvetica", "normal");
   doc.text("Thank you for your business!", 40, 780);
 
+  // Save PDF
   doc.save(`${invoice.id}.pdf`);
 };
 
 /**
  * Dummy send email function
- * Replace this with your actual API/email integration
+ * Replace this with real API/email integration
  */
 const sendInvoiceEmail = (event) => {
   alert(`Email sent to ${event.customer || "customer"} for invoice ${event.ref || "N/A"}`);
@@ -98,29 +100,27 @@ const EventDetailsModal = ({ event, onClose, onMarkPaid }) => {
 
         {/* Header */}
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-bold">Event Details</h3>
+          <h3 className="text-lg font-bold">Invoice Details</h3>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-800">
             <X size={20} />
           </button>
         </div>
 
-        {/* Event Info */}
-        <div className="space-y-3 text-sm">
+        {/* Invoice Info */}
+        <div className="space-y-2 text-sm">
+          <p><b>Invoice #:</b> {event.ref}</p>
+          <p><b>Customer:</b> {event.customer}</p>
           <p><b>Type:</b> {event.type}</p>
-          <p><b>Entity:</b> {event.entity}</p>
-          <p><b>Reference:</b> {event.ref}</p>
           <p><b>Status:</b> {event.status}</p>
-          <p><b>Time:</b> {event.time}</p>
+          <p><b>Date:</b> {event.time}</p>
           {event.amount && <p><b>Amount:</b> ₹{event.amount}</p>}
-          {event.customer && <p><b>Customer:</b> {event.customer}</p>}
-          {event.dueDate && <p><b>Due Date:</b> {event.dueDate}</p>}
           {event.paymentMethod && <p><b>Payment Method:</b> {event.paymentMethod}</p>}
           {event.message && <p className="text-slate-600">{event.message}</p>}
         </div>
 
-        {/* Action Buttons */}
+        {/* Actions */}
         <div className="flex gap-2 mt-4 flex-wrap">
-          {event.status === 'Pending' && (
+          {event.status === "Pending" && (
             <button
               onClick={() => onMarkPaid(event.id)}
               className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"
@@ -143,7 +143,6 @@ const EventDetailsModal = ({ event, onClose, onMarkPaid }) => {
             Send Email
           </button>
         </div>
-
       </div>
     </div>
   );

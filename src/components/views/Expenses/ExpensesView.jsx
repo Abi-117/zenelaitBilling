@@ -30,7 +30,7 @@ const ExpensesView = () => {
       <div>
         <h1 className="text-2xl font-bold">Expenses</h1>
         <p className="text-sm text-slate-500">
-          Zoho-style expense tracking & management
+          Expense tracking & management
         </p>
       </div>
 

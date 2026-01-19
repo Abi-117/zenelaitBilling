@@ -1,64 +1,290 @@
 export const INITIAL_CUSTOMERS = [
   {
     id: 1,
-
-    /* BASIC INFO */
     name: 'Zenelait Technologies',
     email: 'billing@zenelait.com',
     phone: '9876543210',
     segment: 'Enterprise',
     status: 'Active',
-
-    /* GST & BILLING */
     gstin: '33ABCDE1234F1Z5',
     taxPreference: 'GST',
     billingAddress: 'Chennai, Tamil Nadu',
     defaultCurrency: 'INR',
-
-    /* CREDIT & BALANCE */
     creditLimit: 200000,
     creditUsed: 85000,
     outstanding: 42000,
     openingBalance: 0,
     isBlocked: false,
-
-    /* TERMS */
     paymentTerms: 'Net 30',
-
-    /* BUSINESS METRICS */
     ltv: 520000,
     creditScore: 'A+',
     lastTransactionDate: '20 Jan 2026',
-
-    /* SALES */
     salesHistory: [
       { id: 'INV-101', date: '12 Jan 2026', amount: 25000, status: 'Paid' },
       { id: 'INV-108', date: '20 Jan 2026', amount: 42000, status: 'Due' }
     ],
-
-    /* LEDGER */
     ledger: [
       { type: 'Invoice', ref: 'INV-108', debit: 42000, credit: 0, date: '20 Jan 2026' },
       { type: 'Payment', ref: 'PAY-22', debit: 0, credit: 25000, date: '12 Jan 2026' }
     ],
-
-    /* CONTACT PERSONS */
-    contacts: [
-      {
-        name: 'Accounts Team',
-        email: 'accounts@zenelait.com',
-        phone: '9876500000'
-      }
-    ],
-
-    /* ACTIVITY */
+    contacts: [{ name: 'Accounts Team', email: 'accounts@zenelait.com', phone: '9876500000' }],
     activityLog: [
       { type: 'Invoice Created', desc: 'INV-108 for ₹42,000', date: '20 Jan 2026' },
       { type: 'Payment Received', desc: '₹25,000 via UPI', date: '12 Jan 2026' }
     ],
-
-    /* SYSTEM */
     notes: 'Priority enterprise customer',
     createdAt: '01 Jan 2026'
+  },
+
+  {
+    id: 2,
+    name: 'Aster Retail Pvt Ltd',
+    email: 'finance@asterretail.in',
+    phone: '9898989898',
+    segment: 'SMB',
+    status: 'Active',
+    gstin: '29AAACR2345P1Z2',
+    taxPreference: 'GST',
+    billingAddress: 'Bangalore, Karnataka',
+    defaultCurrency: 'INR',
+    creditLimit: 100000,
+    creditUsed: 40000,
+    outstanding: 15000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 15',
+    ltv: 210000,
+    creditScore: 'A',
+    lastTransactionDate: '18 Jan 2026',
+    salesHistory: [{ id: 'INV-112', date: '18 Jan 2026', amount: 15000, status: 'Due' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-112', debit: 15000, credit: 0, date: '18 Jan 2026' }],
+    contacts: [{ name: 'Ravi Kumar', email: 'ravi@asterretail.in', phone: '9898001122' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-112 for ₹15,000', date: '18 Jan 2026' }],
+    notes: '',
+    createdAt: '05 Jan 2026'
+  },
+
+  {
+    id: 3,
+    name: 'Nova Logistics',
+    email: 'accounts@novalogistics.com',
+    phone: '9123456789',
+    segment: 'Enterprise',
+    status: 'Active',
+    gstin: '27AACCN9988R1Z1',
+    taxPreference: 'GST',
+    billingAddress: 'Mumbai, Maharashtra',
+    defaultCurrency: 'INR',
+    creditLimit: 300000,
+    creditUsed: 120000,
+    outstanding: 60000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 45',
+    ltv: 680000,
+    creditScore: 'A+',
+    lastTransactionDate: '15 Jan 2026',
+    salesHistory: [{ id: 'INV-099', date: '15 Jan 2026', amount: 60000, status: 'Due' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-099', debit: 60000, credit: 0, date: '15 Jan 2026' }],
+    contacts: [{ name: 'Logistics Desk', email: 'desk@novalogistics.com', phone: '9123400000' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-099 for ₹60,000', date: '15 Jan 2026' }],
+    notes: '',
+    createdAt: '28 Dec 2025'
+  },
+
+  {
+    id: 4,
+    name: 'Bright Ads Agency',
+    email: 'billing@brightads.in',
+    phone: '9000011111',
+    segment: 'SMB',
+    status: 'Active',
+    gstin: '33BBBCD2222F1Z8',
+    taxPreference: 'GST',
+    billingAddress: 'Coimbatore, Tamil Nadu',
+    defaultCurrency: 'INR',
+    creditLimit: 75000,
+    creditUsed: 30000,
+    outstanding: 0,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Due on Receipt',
+    ltv: 150000,
+    creditScore: 'B+',
+    lastTransactionDate: '10 Jan 2026',
+    salesHistory: [{ id: 'INV-090', date: '10 Jan 2026', amount: 30000, status: 'Paid' }],
+    ledger: [{ type: 'Payment', ref: 'PAY-19', debit: 0, credit: 30000, date: '10 Jan 2026' }],
+    contacts: [{ name: 'Anu', email: 'anu@brightads.in', phone: '9000011112' }],
+    activityLog: [{ type: 'Payment Received', desc: '₹30,000 Cash', date: '10 Jan 2026' }],
+    notes: '',
+    createdAt: '02 Jan 2026'
+  },
+
+  {
+    id: 5,
+    name: 'GreenFarm Organics',
+    email: 'care@greenfarm.in',
+    phone: '9555512345',
+    segment: 'Startup',
+    status: 'Active',
+    gstin: '36CCCFG7777Q1Z9',
+    taxPreference: 'GST',
+    billingAddress: 'Hyderabad, Telangana',
+    defaultCurrency: 'INR',
+    creditLimit: 50000,
+    creditUsed: 20000,
+    outstanding: 12000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 7',
+    ltv: 90000,
+    creditScore: 'B',
+    lastTransactionDate: '22 Jan 2026',
+    salesHistory: [{ id: 'INV-120', date: '22 Jan 2026', amount: 12000, status: 'Due' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-120', debit: 12000, credit: 0, date: '22 Jan 2026' }],
+    contacts: [{ name: 'Support', email: 'support@greenfarm.in', phone: '9555512000' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-120 for ₹12,000', date: '22 Jan 2026' }],
+    notes: '',
+    createdAt: '12 Jan 2026'
+  },
+
+  {
+    id: 6,
+    name: 'Skyline Interiors',
+    email: 'billing@skylineinteriors.in',
+    phone: '9888812345',
+    segment: 'SMB',
+    status: 'Inactive',
+    gstin: '24DDDDS1111M1Z4',
+    taxPreference: 'GST',
+    billingAddress: 'Ahmedabad, Gujarat',
+    defaultCurrency: 'INR',
+    creditLimit: 120000,
+    creditUsed: 90000,
+    outstanding: 45000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 30',
+    ltv: 260000,
+    creditScore: 'C',
+    lastTransactionDate: '05 Jan 2026',
+    salesHistory: [{ id: 'INV-088', date: '05 Jan 2026', amount: 45000, status: 'Overdue' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-088', debit: 45000, credit: 0, date: '05 Jan 2026' }],
+    contacts: [{ name: 'Manager', email: 'manager@skyline.in', phone: '9888812000' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-088 for ₹45,000', date: '05 Jan 2026' }],
+    notes: 'Follow up required',
+    createdAt: '15 Dec 2025'
+  },
+
+  {
+    id: 7,
+    name: 'PixelSoft Solutions',
+    email: 'accounts@pixelsoft.io',
+    phone: '9444412345',
+    segment: 'Startup',
+    status: 'Active',
+    gstin: '33EEEPS5555L1Z6',
+    taxPreference: 'GST',
+    billingAddress: 'Chennai, Tamil Nadu',
+    defaultCurrency: 'INR',
+    creditLimit: 80000,
+    creditUsed: 20000,
+    outstanding: 0,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 15',
+    ltv: 140000,
+    creditScore: 'A',
+    lastTransactionDate: '14 Jan 2026',
+    salesHistory: [{ id: 'INV-095', date: '14 Jan 2026', amount: 20000, status: 'Paid' }],
+    ledger: [{ type: 'Payment', ref: 'PAY-31', debit: 0, credit: 20000, date: '14 Jan 2026' }],
+    contacts: [{ name: 'HR', email: 'hr@pixelsoft.io', phone: '9444412000' }],
+    activityLog: [{ type: 'Payment Received', desc: '₹20,000 Bank Transfer', date: '14 Jan 2026' }],
+    notes: '',
+    createdAt: '10 Jan 2026'
+  },
+
+  {
+    id: 8,
+    name: 'Urban Mart',
+    email: 'finance@urbanmart.in',
+    phone: '9777712345',
+    segment: 'SMB',
+    status: 'Active',
+    gstin: '19FFFUM8888T1Z0',
+    taxPreference: 'GST',
+    billingAddress: 'Kolkata, West Bengal',
+    defaultCurrency: 'INR',
+    creditLimit: 90000,
+    creditUsed: 35000,
+    outstanding: 18000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 21',
+    ltv: 190000,
+    creditScore: 'B+',
+    lastTransactionDate: '19 Jan 2026',
+    salesHistory: [{ id: 'INV-116', date: '19 Jan 2026', amount: 18000, status: 'Due' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-116', debit: 18000, credit: 0, date: '19 Jan 2026' }],
+    contacts: [{ name: 'Billing Desk', email: 'billing@urbanmart.in', phone: '9777712000' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-116 for ₹18,000', date: '19 Jan 2026' }],
+    notes: '',
+    createdAt: '06 Jan 2026'
+  },
+
+  {
+    id: 9,
+    name: 'BlueWave Exports',
+    email: 'accounts@bluewave.com',
+    phone: '9333312345',
+    segment: 'Enterprise',
+    status: 'Active',
+    gstin: '07GGGGW9999A1Z3',
+    taxPreference: 'GST',
+    billingAddress: 'Delhi',
+    defaultCurrency: 'INR',
+    creditLimit: 400000,
+    creditUsed: 200000,
+    outstanding: 90000,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 60',
+    ltv: 900000,
+    creditScore: 'A+',
+    lastTransactionDate: '08 Jan 2026',
+    salesHistory: [{ id: 'INV-081', date: '08 Jan 2026', amount: 90000, status: 'Due' }],
+    ledger: [{ type: 'Invoice', ref: 'INV-081', debit: 90000, credit: 0, date: '08 Jan 2026' }],
+    contacts: [{ name: 'Export Desk', email: 'desk@bluewave.com', phone: '9333312000' }],
+    activityLog: [{ type: 'Invoice Created', desc: 'INV-081 for ₹90,000', date: '08 Jan 2026' }],
+    notes: 'High value client',
+    createdAt: '20 Dec 2025'
+  },
+
+  {
+    id: 10,
+    name: 'NextGen EduTech',
+    email: 'billing@nextgenedu.in',
+    phone: '9666612345',
+    segment: 'Startup',
+    status: 'Active',
+    gstin: '32HHHHE4444J1Z7',
+    taxPreference: 'GST',
+    billingAddress: 'Kochi, Kerala',
+    defaultCurrency: 'INR',
+    creditLimit: 60000,
+    creditUsed: 15000,
+    outstanding: 0,
+    openingBalance: 0,
+    isBlocked: false,
+    paymentTerms: 'Net 15',
+    ltv: 110000,
+    creditScore: 'A',
+    lastTransactionDate: '16 Jan 2026',
+    salesHistory: [{ id: 'INV-102', date: '16 Jan 2026', amount: 15000, status: 'Paid' }],
+    ledger: [{ type: 'Payment', ref: 'PAY-40', debit: 0, credit: 15000, date: '16 Jan 2026' }],
+    contacts: [{ name: 'Admin', email: 'admin@nextgenedu.in', phone: '9666612000' }],
+    activityLog: [{ type: 'Payment Received', desc: '₹15,000 UPI', date: '16 Jan 2026' }],
+    notes: '',
+    createdAt: '03 Jan 2026'
   }
 ];

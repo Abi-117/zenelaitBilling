@@ -2,18 +2,20 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 
 const NewReminderModal = ({ onClose, onSave }) => {
-  const [entity, setEntity] = useState('Subscription');
+  const [entity, setEntity] = useState('Invoice');
   const [ref, setRef] = useState('');
+  const [customer, setCustomer] = useState('');
+  const [amount, setAmount] = useState('');
   const [date, setDate] = useState('');
 
   const handleSave = () => {
-    if (!ref || !date) return alert('Fill all fields');
+    if (!ref || !date || !customer || !amount) return alert('Fill all fields');
 
-    onSave({ entity, ref, date });
+    onSave({ entity, ref, customer, amount, date });
   };
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-md p-6">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-bold">New Reminder</h3>
@@ -33,7 +35,22 @@ const NewReminderModal = ({ onClose, onSave }) => {
           <input
             value={ref}
             onChange={e => setRef(e.target.value)}
-            placeholder="Reference ID (701 / INV-5001)"
+            placeholder="Reference ID (INV-5001 / SUB-1002)"
+            className="w-full border rounded px-3 py-2"
+          />
+
+          <input
+            value={customer}
+            onChange={e => setCustomer(e.target.value)}
+            placeholder="Customer Name"
+            className="w-full border rounded px-3 py-2"
+          />
+
+          <input
+            value={amount}
+            onChange={e => setAmount(e.target.value)}
+            placeholder="Amount"
+            type="number"
             className="w-full border rounded px-3 py-2"
           />
 

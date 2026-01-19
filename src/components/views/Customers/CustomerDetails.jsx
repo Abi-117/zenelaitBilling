@@ -1,5 +1,5 @@
-// CustomerDetails.jsx
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, X } from 'lucide-react';
 import Modal from '../../ui/Modal';
 import OverviewTab from './OverviewTab';
 import TransactionsTab from './TransactionsTab';
@@ -8,19 +8,24 @@ import MailsTab from './MailsTab';
 
 const tabs = ['Overview', 'Transactions', 'Statement', 'Mails'];
 
-const CustomerDetails = ({ customer, onAddCustomer }) => {
+const CustomerDetails = ({ customer, onAddCustomer, onClose }) => {
   const [activeTab, setActiveTab] = useState('Overview');
   const [addOpen, setAddOpen] = useState(false);
 
-  // NO CUSTOMER → show add customer screen
-  if (!customer) {
+  /* ✅ LOCAL CUSTOMER STATE (IMPORTANT) */
+  const [currentCustomer, setCurrentCustomer] = useState(customer);
+
+  /* 🔄 When selected customer changes */
+  useEffect(() => {
+    setCurrentCustomer(customer);
+  }, [customer]);
+
+  /* ---------------- NO CUSTOMER ---------------- */
+  if (!currentCustomer) {
     return (
       <div className="h-full flex items-center justify-center bg-slate-50">
-        <div className="bg-white p-8 rounded-xl shadow max-w-md w-full">
+        <div className="bg-white p-8 rounded-xl shadow w-full max-w-md">
           <h2 className="text-xl font-bold mb-2">Add New Customer</h2>
-          <p className="text-sm text-slate-500 mb-6">
-            Create a customer to start billing, invoicing & tracking
-          </p>
 
           <button
             onClick={() => setAddOpen(true)}
@@ -46,17 +51,34 @@ const CustomerDetails = ({ customer, onAddCustomer }) => {
     );
   }
 
-  // CUSTOMER SELECTED → show details
+  /* ---------------- CUSTOMER DETAILS ---------------- */
   return (
     <div className="h-full flex flex-col bg-white">
+
       {/* HEADER */}
-      <div className="p-6 border-b">
-        <h2 className="text-xl font-bold">{customer?.name || 'No Name'}</h2>
-        <p className="text-xs text-slate-500">{customer?.email || '-'}</p>
+      <div className="p-6 border-b flex justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={onClose}>
+            <ArrowLeft size={18} />
+          </button>
+
+          <div>
+            <h2 className="text-xl font-bold">
+              {currentCustomer.name}
+            </h2>
+            <p className="text-xs text-slate-500">
+              {currentCustomer.email}
+            </p>
+          </div>
+        </div>
+
+        <button onClick={onClose}>
+          <X size={18} />
+        </button>
       </div>
 
       {/* TABS */}
-      <div className="px-6 flex space-x-6 border-b text-sm">
+      <div className="px-6 flex gap-6 border-b text-sm">
         {tabs.map(t => (
           <button
             key={t}
@@ -74,10 +96,26 @@ const CustomerDetails = ({ customer, onAddCustomer }) => {
 
       {/* CONTENT */}
       <div className="p-6 flex-1 overflow-y-auto bg-slate-50">
-        {activeTab === 'Overview' && <OverviewTab customer={customer} />}
-        {activeTab === 'Transactions' && <TransactionsTab customer={customer} />}
-        {activeTab === 'Statement' && <StatementTab customer={customer} />}
-        {activeTab === 'Mails' && <MailsTab customer={customer} />}
+
+        {activeTab === 'Overview' && (
+          <OverviewTab
+            customer={currentCustomer}
+            onUpdate={(updatedCustomer) => {
+              setCurrentCustomer(updatedCustomer);
+            }}
+          />
+        )}
+
+        {activeTab === 'Transactions' && (
+          <TransactionsTab customer={currentCustomer} />
+        )}
+
+        {activeTab === 'Statement' && (
+          <StatementTab customer={currentCustomer} />
+        )}
+
+        {activeTab === 'Mails' && <MailsTab />}
+
       </div>
     </div>
   );
@@ -85,8 +123,8 @@ const CustomerDetails = ({ customer, onAddCustomer }) => {
 
 export default CustomerDetails;
 
-// -------------------------
-// Add Customer Form
+/* ---------------- ADD CUSTOMER FORM ---------------- */
+
 const AddCustomerForm = ({ onSave }) => {
   const [form, setForm] = useState({
     name: '',
@@ -95,6 +133,9 @@ const AddCustomerForm = ({ onSave }) => {
     gstin: '',
     billingAddress: '',
     creditLimit: 0,
+    outstanding: 0,
+    paymentTerms: 'Net 30',
+    salesHistory: [],
   });
 
   return (
@@ -122,13 +163,17 @@ const AddCustomerForm = ({ onSave }) => {
       <input
         placeholder="Billing Address"
         className="w-full border p-2 rounded"
-        onChange={e => setForm({ ...form, billingAddress: e.target.value })}
+        onChange={e =>
+          setForm({ ...form, billingAddress: e.target.value })
+        }
       />
       <input
         type="number"
         placeholder="Credit Limit"
         className="w-full border p-2 rounded"
-        onChange={e => setForm({ ...form, creditLimit: Number(e.target.value) })}
+        onChange={e =>
+          setForm({ ...form, creditLimit: Number(e.target.value) })
+        }
       />
 
       <button

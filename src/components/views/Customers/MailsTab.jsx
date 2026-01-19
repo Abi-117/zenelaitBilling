@@ -1,101 +1,91 @@
-import { Mail, Paperclip, Send } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, CheckCircle } from 'lucide-react';
 
-const MOCK_MAILS = [
-  {
-    id: 1,
-    subject: 'Invoice INV-108 Sent',
-    to: 'billing@customer.com',
-    date: '20 Jan 2026',
-    status: 'Sent',
-    body: 'Invoice INV-108 for ₹42,000 has been sent successfully.',
-    attachments: ['INV-108.pdf'],
-  },
-  {
-    id: 2,
-    subject: 'Payment Reminder',
-    to: 'billing@customer.com',
-    date: '15 Jan 2026',
-    status: 'Delivered',
-    body: 'This is a reminder regarding overdue invoice INV-102.',
-    attachments: [],
-  },
-];
+const MailsTab = ({ customer }) => {
+  const [to, setTo] = useState(customer?.email || '');
+  const [subject, setSubject] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
 
-const MailsTab = () => {
+  const handleSend = () => {
+    if (!to || !subject || !message) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    setSending(true);
+    setSent(false);
+
+    // Fake send delay (real mail mathiri)
+    setTimeout(() => {
+      setSending(false);
+      setSent(true);
+
+      setSubject('');
+      setMessage('');
+    }, 1500);
+  };
+
   return (
-    <div className="space-y-6 text-sm">
+    <div className="max-w-2xl bg-white rounded-xl shadow p-6">
 
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold text-slate-800">Mails</h3>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
-          <Send size={14} />
-          Send Mail
-        </button>
+      <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+        <Mail size={18} />
+        Send Mail to Customer
+      </h3>
+
+      {/* TO */}
+      <div className="mb-4">
+        <label className="text-sm text-slate-500">To</label>
+        <input
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2 mt-1"
+          placeholder="customer@email.com"
+        />
       </div>
 
-      {/* Mail List */}
-      {MOCK_MAILS.length > 0 ? (
-        <div className="space-y-3">
-          {MOCK_MAILS.map(mail => (
-            <div
-              key={mail.id}
-              className="border rounded-lg p-4 bg-white hover:shadow-sm transition"
-            >
-              <div className="flex justify-between items-start">
-                <div>
-                  <p className="font-semibold text-slate-800">
-                    {mail.subject}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    To: {mail.to}
-                  </p>
-                </div>
+      {/* SUBJECT */}
+      <div className="mb-4">
+        <label className="text-sm text-slate-500">Subject</label>
+        <input
+          value={subject}
+          onChange={(e) => setSubject(e.target.value)}
+          className="w-full border rounded-lg px-3 py-2 mt-1"
+          placeholder="Invoice / Payment Reminder"
+        />
+      </div>
 
-                <div className="text-right text-xs">
-                  <p className="text-slate-400">{mail.date}</p>
-                  <span
-                    className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                      mail.status === 'Sent'
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-emerald-100 text-emerald-700'
-                    }`}
-                  >
-                    {mail.status}
-                  </span>
-                </div>
-              </div>
+      {/* MESSAGE */}
+      <div className="mb-4">
+        <label className="text-sm text-slate-500">Message</label>
+        <textarea
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          rows={5}
+          className="w-full border rounded-lg px-3 py-2 mt-1"
+          placeholder="Write your message here..."
+        />
+      </div>
 
-              <p className="mt-3 text-slate-600">
-                {mail.body}
-              </p>
+      {/* ACTION */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={handleSend}
+          disabled={sending}
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold disabled:opacity-60"
+        >
+          {sending ? 'Sending...' : 'Send Mail'}
+        </button>
 
-              {mail.attachments.length > 0 && (
-                <div className="flex items-center gap-2 mt-3 text-xs text-slate-500">
-                  <Paperclip size={12} />
-                  {mail.attachments.map((file, i) => (
-                    <span
-                      key={i}
-                      className="bg-slate-100 px-2 py-1 rounded"
-                    >
-                      {file}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      ) : (
-        /* Empty State */
-        <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-          <Mail size={32} />
-          <p className="mt-2 font-medium">No emails sent yet</p>
-          <p className="text-xs">
-            Emails related to invoices and reminders will appear here
-          </p>
-        </div>
-      )}
+        {sent && (
+          <div className="flex items-center gap-2 text-green-600 text-sm">
+            <CheckCircle size={16} />
+            Mail sent successfully
+          </div>
+        )}
+      </div>
     </div>
   );
 };

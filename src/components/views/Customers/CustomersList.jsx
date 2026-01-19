@@ -1,4 +1,3 @@
-// CustomersList.jsx
 const CustomersList = ({ customers, onSelect }) => {
   return (
     <div className="h-full overflow-y-auto">
@@ -11,7 +10,9 @@ const CustomersList = ({ customers, onSelect }) => {
           className="px-4 py-3 cursor-pointer hover:bg-slate-100 border-b"
         >
           <p className="font-medium text-blue-600">{c.name}</p>
-          <p className="text-xs text-slate-500">₹{c.outstanding || 0}</p>
+          <p className="text-xs text-slate-500">
+            ₹{c.outstanding ?? 0}
+          </p>
         </div>
       ))}
     </div>

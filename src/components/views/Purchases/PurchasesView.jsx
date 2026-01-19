@@ -2,7 +2,7 @@ import { useState } from 'react';
 import PurchaseBillsView from './PurchaseBillsView';
 import GRNView from './GRNView';
 import PurchaseReturnsView from './PurchaseReturnsView';
-import SupplierLedgerView from '../suppliers/SupplierLedgerView';
+import SupplierLedgerView from './SupplierLedgerView';
 import SupplierOutstandingView from './SupplierOutstandingView';
 
 const PurchasesView = () => {

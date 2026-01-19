@@ -1,177 +1,126 @@
-import { useState } from 'react';
-import { ArrowLeft, Plus, Trash2, FileText } from 'lucide-react';
-import { generateInvoicePDF } from '../../utils/invoicePdf';
+import React from 'react';
+import { ArrowLeft } from 'lucide-react';
 
-const EMPTY_ITEM = {
-  name: '',
-  hsn: '',
-  qty: 1,
-  rate: 0,
-  tax: 18,
-  total: 0,
-};
-
-const InvoiceEditorView = ({ invoice = {}, onBack }) => {
-  const [items, setItems] = useState([EMPTY_ITEM]);
-  const [customer, setCustomer] = useState('');
-  const [gstin, setGstin] = useState('');
-  const [invoiceNo] = useState(`INV-${Date.now()}`);
-  const [date] = useState(new Date().toISOString().slice(0, 10));
-
-  // 🔢 Calculations
-  const subtotal = items.reduce((s, i) => s + i.qty * i.rate, 0);
-  const taxAmount = items.reduce(
-    (s, i) => s + (i.qty * i.rate * i.tax) / 100,
-    0
-  );
-  const grandTotal = subtotal + taxAmount;
-
-  const updateItem = (index, field, value) => {
-    const updated = [...items];
-    updated[index][field] = value;
-    updated[index].total =
-      updated[index].qty * updated[index].rate +
-      (updated[index].qty * updated[index].rate * updated[index].tax) / 100;
-    setItems(updated);
+const InvoiceEditorPanel = ({ invoice, onChange, onBack, onSave }) => {
+  const updateItem = (i, key, value) => {
+    const items = [...invoice.items];
+    items[i][key] = value;
+    onChange({ ...invoice, items });
   };
 
-  const addItem = () => setItems([...items, EMPTY_ITEM]);
-  const removeItem = (i) =>
-    setItems(items.filter((_, index) => index !== i));
-
-  const invoiceData = {
-    invoiceNo,
-    date,
-    customer,
-    gstin,
-    items,
-    subtotal,
-    taxAmount,
-    grandTotal,
+  const addItem = () => {
+    onChange({ ...invoice, items: [...invoice.items, { name: '', qty: 1, rate: 0 }] });
   };
+
+  const deleteItem = (i) => {
+    const items = invoice.items.filter((_, index) => index !== i);
+    onChange({ ...invoice, items });
+  };
+
+  // Calculate totals
+  const subtotal = invoice.items.reduce((sum, item) => sum + item.qty * item.rate, 0);
+  const tax = (subtotal * (invoice.gstRate || 0)) / 100;
+  const total = subtotal + tax;
 
   return (
-    <div className="space-y-6 animate-fadeIn">
+    <div className="p-6 bg-white border-r h-full flex flex-col justify-between">
 
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-slate-200 rounded-lg"
-          >
-            <ArrowLeft />
-          </button>
-          <h2 className="text-2xl font-bold">Invoice Editor</h2>
-        </div>
-
+      {/* Back & Save Buttons */}
+      <div className="flex gap-2 mb-4">
+        <button onClick={onBack} className="flex items-center gap-1 text-sm text-slate-500">
+          <ArrowLeft size={16} /> Back
+        </button>
         <button
-          onClick={() => generateInvoicePDF(invoiceData)}
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow"
+          onClick={() => onSave({ ...invoice, subtotal, tax, total })}
+          className="btn bg-blue-600 text-white px-3 py-1 rounded"
         >
-          <FileText size={16} />
-          <span>Download PDF</span>
+          Save
         </button>
       </div>
 
-      {/* Invoice Meta */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white p-4 rounded-xl shadow">
+      {/* Editable Invoice Info */}
+      <div className="space-y-2 flex-1 overflow-auto">
         <input
+          type="text"
+          placeholder="Invoice ID"
+          value={invoice.id}
+          onChange={e => onChange({ ...invoice, id: e.target.value })}
+          className="input border px-2 py-1 rounded w-full"
+        />
+        <input
+          type="text"
           placeholder="Customer Name"
-          value={customer}
-          onChange={(e) => setCustomer(e.target.value)}
-          className="border p-2 rounded"
+          value={invoice.customerName}
+          onChange={e => onChange({ ...invoice, customerName: e.target.value })}
+          className="input border px-2 py-1 rounded w-full"
         />
         <input
-          placeholder="GSTIN"
-          value={gstin}
-          onChange={(e) => setGstin(e.target.value)}
-          className="border p-2 rounded"
+          type="date"
+          value={invoice.date}
+          onChange={e => onChange({ ...invoice, date: e.target.value })}
+          className="input border px-2 py-1 rounded w-full"
         />
-        <input value={invoiceNo} disabled className="border p-2 rounded bg-slate-100" />
-        <input value={date} disabled className="border p-2 rounded bg-slate-100" />
-      </div>
+        <input
+          type="text"
+          placeholder="GSTIN"
+          value={invoice.gstin || ''}
+          onChange={e => onChange({ ...invoice, gstin: e.target.value })}
+          className="input border px-2 py-1 rounded w-full"
+        />
+        <div className="flex gap-2 items-center">
+          <label className="font-semibold">GST %:</label>
+          <input
+            type="number"
+            className="border rounded px-2 py-1 w-20"
+            value={invoice.gstRate}
+            onChange={e => onChange({ ...invoice, gstRate: +e.target.value })}
+          />
+        </div>
 
-      {/* Items Table */}
-      <div className="bg-white p-4 rounded-xl shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-slate-600">
+        {/* Items Table */}
+        <table className="w-full text-sm border mt-2">
+          <thead className="bg-slate-100">
             <tr>
-              <th className="p-2 text-left">Item</th>
-              <th className="p-2">HSN</th>
-              <th className="p-2">Qty</th>
-              <th className="p-2">Rate</th>
-              <th className="p-2">GST %</th>
-              <th className="p-2">Total</th>
-              <th></th>
+              <th className="border p-2">Item</th>
+              <th className="border p-2">Qty</th>
+              <th className="border p-2">Rate</th>
+              <th className="border p-2">Amount</th>
+              <th className="border p-2">Action</th> {/* New column for delete */}
             </tr>
           </thead>
-
           <tbody>
-            {items.map((item, i) => (
-              <tr key={i} className="border-b">
-                <td className="p-2">
+            {invoice.items.map((item, i) => (
+              <tr key={i}>
+                <td className="border p-2">
                   <input
                     value={item.name}
-                    onChange={(e) =>
-                      updateItem(i, 'name', e.target.value)
-                    }
-                    className="border p-1 rounded w-full"
+                    onChange={e => updateItem(i, 'name', e.target.value)}
+                    className="input border px-1 py-1 rounded w-full"
                   />
                 </td>
-                <td className="p-2">
-                  <input
-                    value={item.hsn}
-                    onChange={(e) =>
-                      updateItem(i, 'hsn', e.target.value)
-                    }
-                    className="border p-1 rounded w-24"
-                  />
-                </td>
-                <td className="p-2">
+                <td className="border p-2">
                   <input
                     type="number"
                     value={item.qty}
-                    onChange={(e) =>
-                      updateItem(i, 'qty', Number(e.target.value))
-                    }
-                    className="border p-1 rounded w-20"
+                    onChange={e => updateItem(i, 'qty', +e.target.value)}
+                    className="input border px-1 py-1 rounded w-full"
                   />
                 </td>
-                <td className="p-2">
+                <td className="border p-2">
                   <input
                     type="number"
                     value={item.rate}
-                    onChange={(e) =>
-                      updateItem(i, 'rate', Number(e.target.value))
-                    }
-                    className="border p-1 rounded w-24"
+                    onChange={e => updateItem(i, 'rate', +e.target.value)}
+                    className="input border px-1 py-1 rounded w-full"
                   />
                 </td>
-                <td className="p-2">
-                  <select
-                    value={item.tax}
-                    onChange={(e) =>
-                      updateItem(i, 'tax', Number(e.target.value))
-                    }
-                    className="border p-1 rounded"
-                  >
-                    {[0, 5, 12, 18, 28].map((t) => (
-                      <option key={t} value={t}>
-                        {t}%
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="p-2 font-semibold">
-                  ₹{item.total.toFixed(2)}
-                </td>
-                <td className="p-2">
+                <td className="border p-2">₹{(item.qty * item.rate).toFixed(2)}</td>
+                <td className="border p-2 text-center">
                   <button
-                    onClick={() => removeItem(i)}
-                    className="text-rose-500 hover:bg-rose-50 p-1 rounded"
+                    onClick={() => deleteItem(i)}
+                    className="bg-red-500 text-white px-2 py-1 rounded text-sm"
                   >
-                    <Trash2 size={16} />
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -179,32 +128,19 @@ const InvoiceEditorView = ({ invoice = {}, onBack }) => {
           </tbody>
         </table>
 
-        <button
-          onClick={addItem}
-          className="mt-4 flex items-center space-x-2 text-blue-600 font-medium"
-        >
-          <Plus size={16} />
-          <span>Add Item</span>
+        <button onClick={addItem} className="btn mt-2 bg-green-500 text-white px-2 py-1 rounded">
+          + Add Item
         </button>
-      </div>
 
-      {/* Totals */}
-      <div className="bg-white p-4 rounded-xl shadow max-w-md ml-auto space-y-2">
-        <div className="flex justify-between">
-          <span>Subtotal</span>
-          <span>₹{subtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between">
-          <span>GST</span>
-          <span>₹{taxAmount.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between font-bold text-lg">
-          <span>Grand Total</span>
-          <span>₹{grandTotal.toFixed(2)}</span>
+        {/* Totals */}
+        <div className="mt-4 flex flex-col gap-1 text-right text-gray-700">
+          <p>Subtotal: ₹{subtotal.toFixed(2)}</p>
+          <p>GST ({invoice.gstRate || 0}%): ₹{tax.toFixed(2)}</p>
+          <p className="font-bold text-lg">Total: ₹{total.toFixed(2)}</p>
         </div>
       </div>
     </div>
   );
 };
 
-export default InvoiceEditorView;
+export default InvoiceEditorPanel;

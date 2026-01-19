@@ -5,6 +5,11 @@ const ItemsView = () => {
   const [items, setItems] = useState([
     { id: 1, name: 'Consultation Service', type: 'Service', price: 1500, hsn: '9983', tax: 18, status: 'Active' },
     { id: 2, name: 'Software License', type: 'Product', price: 4500, hsn: '8523', tax: 18, status: 'Active' },
+    { id: 3, name: 'Website Development', type: 'Service', price: 12000, hsn: '9983', tax: 18, status: 'Active' },
+    { id: 4, name: 'Laptop', type: 'Product', price: 55000, hsn: '8471', tax: 18, status: 'Active' },
+    { id: 5, name: 'Office Chair', type: 'Product', price: 5200, hsn: '9401', tax: 18, status: 'Inactive' },
+    { id: 6, name: 'Printer Paper', type: 'Product', price: 180, hsn: '4802', tax: 12, status: 'Active' },
+    { id: 7, name: 'Ink Cartridge', type: 'Product', price: 520, hsn: '8443', tax: 18, status: 'Active' },
   ]);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,7 +31,7 @@ const ItemsView = () => {
 
   const openEditModal = (item) => {
     setEditingItem(item);
-    setFormData(item);
+    setFormData({ ...item });
     setModalOpen(true);
   };
 
@@ -41,11 +46,10 @@ const ItemsView = () => {
     if (!formData.name || !formData.hsn || !formData.price) return alert('Please fill all fields');
 
     if (editingItem) {
-      setItems(items.map(item => (item.id === editingItem.id ? formData : item)));
+      setItems(items.map(item => item.id === editingItem.id ? { ...formData, id: editingItem.id } : item));
     } else {
       setItems([...items, { ...formData, id: Date.now() }]);
     }
-
     setModalOpen(false);
   };
 
@@ -56,10 +60,10 @@ const ItemsView = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-slate-800">Items</h2>
-          <p className="text-sm text-slate-500">Manage products and services</p>
+          <p className="text-sm text-slate-500">Manage products and services with GST, HSN & pricing</p>
         </div>
         <button
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow"
+          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700"
           onClick={openNewItemModal}
         >
           <Plus size={16} />
@@ -76,44 +80,45 @@ const ItemsView = () => {
               <th className="p-3 text-center">Type</th>
               <th className="p-3 text-center">HSN</th>
               <th className="p-3 text-center">Price</th>
-              <th className="p-3 text-center">GST</th>
+              <th className="p-3 text-center">GST %</th>
               <th className="p-3 text-center">Status</th>
               <th className="p-3"></th>
             </tr>
           </thead>
 
           <tbody>
-  {items.map((item) => (
-    <tr
-      key={item.id}
-      className="border-b hover:bg-slate-50 transition cursor-pointer"
-      onClick={() => onSelectProduct && onSelectProduct(item)}
-    >
-      <td className="p-3 font-medium flex items-center space-x-2">
-        <Package size={16} className="text-slate-400" />
-        <span>{item.name}</span>
-      </td>
-      <td className="p-3 text-center">{item.type}</td>
-      <td className="p-3 text-center">{item.hsn}</td>
-      <td className="p-3 text-center">₹{item.price}</td>
-      <td className="p-3 text-center">{item.tax}%</td>
-      <td className="p-3 text-center">
-        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${item.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
-          {item.status}
-        </span>
-      </td>
-      <td className="p-3 text-right space-x-2">
-        <button className="text-blue-600 hover:bg-blue-50 p-2 rounded" onClick={(e) => { e.stopPropagation(); openEditModal(item); }}>
-          <Edit size={14} />
-        </button>
-        <button className="text-rose-500 hover:bg-rose-50 p-2 rounded" onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}>
-          <Trash2 size={14} />
-        </button>
-      </td>
-    </tr>
-  ))}
-</tbody>
-
+            {items.map(item => (
+              <tr key={item.id} className="border-b hover:bg-slate-50 transition cursor-pointer">
+                <td className="p-3 font-medium flex items-center space-x-2">
+                  <Package size={16} className="text-slate-400" />
+                  {item.name}
+                </td>
+                <td className="p-3 text-center">{item.type}</td>
+                <td className="p-3 text-center">{item.hsn}</td>
+                <td className="p-3 text-center">₹{item.price}</td>
+                <td className="p-3 text-center">{item.tax}%</td>
+                <td className="p-3 text-center">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${item.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                    {item.status}
+                  </span>
+                </td>
+                <td className="p-3 text-right space-x-2">
+                  <button
+                    className="text-blue-600 hover:bg-blue-50 p-2 rounded"
+                    onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                  >
+                    <Edit size={14} />
+                  </button>
+                  <button
+                    className="text-rose-500 hover:bg-rose-50 p-2 rounded"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.id); }}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
         </table>
       </div>
 

@@ -1,60 +1,114 @@
-import { Edit, Send, FileText, IndianRupee } from 'lucide-react';
-import Badge from '../ui/Badge';
+import React, { useState } from 'react';
+import { ArrowLeft, Pencil } from 'lucide-react';
+import SendInvoicePage from './SendInvoicePage';
+import InvoicePreview from './InvoicePreviewPanel';
+import { generateInvoicePDF } from '../../utils/invoicePdf';
+import PaymentPanel from './PaymentPanel';
 
-const InvoiceDetailsPanel = ({ invoice, onEdit,onPDF,onSend}) => {
+const InvoiceDetailsPanel = ({
+  invoice,
+  onEdit,
+  onClose,
+  onSendInvoice,
+}) => {
+  const [sending, setSending] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  const [paying, setPaying] = useState(false);
+
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 bg-white h-full flex flex-col justify-between">
+      {/* ------------------ SEND INVOICE ------------------ */}
+      {sending && (
+        <SendInvoicePage
+          invoice={invoice}
+          onSendInvoice={onSendInvoice}
+          onBack={() => setSending(false)}
+        />
+      )}
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">{invoice.id}</h2>
-        <Badge status={invoice.status} />
-      </div>
+      {/* ------------------ PREVIEW ------------------ */}
+      {previewing && !sending && (
+        <InvoicePreview
+          invoice={invoice}
+          onBack={() => setPreviewing(false)}
+        />
+      )}
 
-      {/* ACTIONS */}
-      <div className="flex gap-3">
-       <button
-  disabled={invoice.status !== 'Draft'}
-  onClick={onSend}
-  className={`btn-primary ${
-    invoice.status !== 'Draft'
-      ? 'opacity-50 cursor-not-allowed'
-      : ''
-  }`}
->
-  Send
-</button>
+      {/* ------------------ PAYMENT ------------------ */}
+      {paying && !sending && !previewing && (
+        <PaymentPanel
+          invoice={invoice}
+          onClose={() => setPaying(false)}
+        />
+      )}
 
+      {/* ------------------ MAIN PANEL ------------------ */}
+      {!sending && !previewing && !paying && (
+        <>
+          {/* Back Button */}
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 text-sm text-slate-500 mb-4"
+          >
+            <ArrowLeft size={16} /> Back
+          </button>
 
-        <button onClick={onPDF} className="btn-secondary">
-  PDF / Print
-</button>
+          {/* Invoice Info */}
+          <h2 className="text-xl font-bold">{invoice.id}</h2>
+          <p className="text-sm text-slate-500">{invoice.customerName}</p>
 
-        <button
-          onClick={onEdit}
-          className="btn-outline flex items-center gap-2"
-        >
-          <Edit size={16} /> Edit
-        </button>
-      </div>
+          <div className="mt-4 text-sm space-y-2">
+            <p>Date: {invoice.date}</p>
+            <p>GSTIN: {invoice.gstin || '-'}</p>
+            <p>GST %: {invoice.gstRate || 0}%</p>
+            <p>Status: {invoice.status}</p>
+            <p className="font-bold text-lg">₹{invoice.total}</p>
+            {invoice.customerEmail && (
+              <p className="text-sm text-gray-500">
+                Email: {invoice.customerEmail}
+              </p>
+            )}
+          </div>
 
-      {/* WHAT'S NEXT */}
-      <div className="bg-white p-4 rounded shadow">
-        <h3 className="font-semibold mb-2">What’s next?</h3>
-        <p className="text-sm text-slate-600 mb-3">
-          Record payment to close this invoice.
-        </p>
-        <button className="btn-success flex items-center gap-2">
-          <IndianRupee size={16} /> Record Payment
-        </button>
-      </div>
+          {/* Action Buttons */}
+          <div className="flex gap-2 mt-6 flex-wrap">
+            <button
+              onClick={onEdit}
+              className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded"
+            >
+              <Pencil size={14} /> Edit
+            </button>
 
-      {/* DETAILS */}
-      <div className="bg-white p-4 rounded shadow space-y-2">
-        <p><b>Customer:</b> {invoice.customerName}</p>
-        <p><b>Date:</b> {invoice.date}</p>
-        <p><b>Total:</b> ₹{invoice.total}</p>
-      </div>
+            <button
+              onClick={() => setSending(true)}
+              className="flex-1 bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Send
+            </button>
+
+            <button
+              onClick={() => setPaying(true)}
+              className="flex-1 bg-purple-600 text-white px-4 py-2 rounded"
+            >
+              Payment
+            </button>
+
+            <button
+              onClick={() => generateInvoicePDF(invoice)}
+              className="flex-1 bg-slate-700 text-white px-4 py-2 rounded"
+            >
+              PDF
+            </button>
+
+            <button
+              onClick={() => setPreviewing(true)}
+              className="flex-1 bg-orange-600 text-white px-4 py-2 rounded"
+            >
+              Preview
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -1,5 +1,3 @@
-
-
 import { useState } from 'react';
 import { Plus, Mail, Phone, FileText, MessageSquare, List, IndianRupee } from 'lucide-react';
 import Card from '../../ui/Card';
@@ -12,13 +10,11 @@ export default function CustomersView() {
   const [activeCustomer, setActiveCustomer] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [addOpen, setAddOpen] = useState(false);
-  
+
   const addCustomer = (data) => {
     setCustomers([...customers, { id: Date.now(), ...data }]);
-    setAddOpen(false);
+    setAddOpen(false);  // Close modal after save
   };
-  
-  
 
   return (
     <div className="flex h-[calc(100vh-80px)]">
@@ -27,16 +23,23 @@ export default function CustomersView() {
       <div className="w-80 border-r bg-white">
         <div className="p-4 flex justify-between items-center">
           <h3 className="font-bold">All Customers</h3>
-          <button onClick={() => setAddOpen(true)} className="bg-blue-600 text-white p-2 rounded">
+          <button
+            onClick={() => setAddOpen(true)}
+            className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition"
+          >
             <Plus size={16} />
           </button>
         </div>
 
         <div className="overflow-y-auto">
           {customers.map(c => (
-            <div key={c.id} onClick={() => setActiveCustomer(c)} className={`p-4 cursor-pointer hover:bg-slate-50 ${activeCustomer?.id === c.id && 'bg-slate-100'}`}>
+            <div
+              key={c.id}
+              onClick={() => setActiveCustomer(c)}
+              className={`p-4 cursor-pointer hover:bg-slate-50 ${activeCustomer?.id === c.id && 'bg-slate-100'}`}
+            >
               <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-slate-500">₹{c.receivable}</p>
+              <p className="text-xs text-slate-500">₹{c.receivable || 0}</p>
             </div>
           ))}
         </div>
@@ -73,14 +76,17 @@ export default function CustomersView() {
 
       {/* ADD CUSTOMER MODAL */}
       <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="New Customer">
-        <AddCustomerForm onSave={addCustomer} />
+        <AddCustomerForm onSave={addCustomer} onCancel={() => setAddOpen(false)} />
       </Modal>
     </div>
   );
 
   function Tab({ label, icon: Icon, tab }) {
     return (
-      <button onClick={() => setActiveTab(tab)} className={`flex items-center space-x-1 ${activeTab === tab ? 'text-blue-600 font-bold' : 'text-slate-500'}`}>
+      <button
+        onClick={() => setActiveTab(tab)}
+        className={`flex items-center space-x-1 ${activeTab === tab ? 'text-blue-600 font-bold' : 'text-slate-500'}`}
+      >
         <Icon size={14} />
         <span>{label}</span>
       </button>
@@ -95,14 +101,14 @@ function Overview({ c }) {
     <div className="grid grid-cols-2 gap-6">
       <Card className="p-4">
         <h4 className="font-bold mb-2">Receivables</h4>
-        <p className="text-2xl font-bold">₹{c.receivable}</p>
-        <p className="text-xs text-slate-500">Unused credit: ₹{c.unusedCredit}</p>
+        <p className="text-2xl font-bold">₹{c.receivable || 0}</p>
+        <p className="text-xs text-slate-500">Unused credit: ₹{c.unusedCredit || 0}</p>
       </Card>
 
       <Card className="p-4">
         <h4 className="font-bold mb-2">Customer Info</h4>
-        <p><Mail size={14} className="inline" /> {c.email}</p>
-        <p><Phone size={14} className="inline" /> {c.phone}</p>
+        <p><Mail size={14} className="inline mr-1" /> {c.email || '—'}</p>
+        <p><Phone size={14} className="inline mr-1" /> {c.phone || '—'}</p>
         <p>PAN: {c.pan || '—'}</p>
         <p>GSTIN: {c.gstin || '—'}</p>
       </Card>
@@ -114,50 +120,116 @@ function Transactions({ c }) {
   return (
     <Card className="p-4">
       <h4 className="font-bold mb-4">Sales History</h4>
-
-      {c.salesHistory?.map(inv => (
-        <div
-          key={inv.id}
-          className="flex justify-between items-center border-b py-2 text-sm"
-        >
-          <span>{inv.id}</span>
-          <span>₹{inv.amount.toLocaleString()}</span>
-          <Badge status={inv.status} />
-        </div>
-      ))}
+      {c.salesHistory?.length ? (
+        c.salesHistory.map(inv => (
+          <div key={inv.id} className="flex justify-between items-center border-b py-2 text-sm">
+            <span>{inv.id}</span>
+            <span>₹{inv.amount.toLocaleString()}</span>
+            <Badge status={inv.status} />
+          </div>
+        ))
+      ) : (
+        <p className="text-sm text-slate-500">No transactions found</p>
+      )}
     </Card>
   );
 }
 
-
-function Comments() {
-  return <Card className="p-4">Internal notes & timeline</Card>;
-}
-
-function Mails() {
-  return <Card className="p-4">Invoice emails history</Card>;
-}
-
-function Statement() {
-  return <Card className="p-4">Customer statement + download</Card>;
-}
+function Comments() { return <Card className="p-4">Internal notes & timeline</Card>; }
+function Mails() { return <Card className="p-4">Invoice emails history</Card>; }
+function Statement() { return <Card className="p-4">Customer statement + download</Card>; }
 
 /* ---------------- ADD CUSTOMER ---------------- */
 
-function AddCustomerForm({ onSave }) {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', gstin: '', pan: '', receivable: 0, unusedCredit: 0 });
+function AddCustomerForm({ onSave, onCancel }) {
+  const [form, setForm] = useState({
+    name: '', email: '', phone: '', gstin: '', pan: '', billingAddress: '',
+    creditLimit: 0, receivable: 0, unusedCredit: 0
+  });
+  const [error, setError] = useState('');
+
+  const handleSave = () => {
+    if (!form.name) return setError('Customer name is required');
+    onSave(form);
+    setForm({
+      name: '', email: '', phone: '', gstin: '', pan: '', billingAddress: '',
+      creditLimit: 0, receivable: 0, unusedCredit: 0
+    });
+    setError('');
+  };
 
   return (
     <div className="space-y-3">
-      <input placeholder="Customer Name" onChange={e => setForm({ ...form, name: e.target.value })} />
-<input placeholder="Email" onChange={e => setForm({ ...form, email: e.target.value })} />
-<input placeholder="Phone" onChange={e => setForm({ ...form, phone: e.target.value })} />
-<input placeholder="GSTIN" onChange={e => setForm({ ...form, gstin: e.target.value })} />
-<input placeholder="Billing Address" onChange={e => setForm({ ...form, billingAddress: e.target.value })} />
-<input placeholder="Credit Limit" type="number" onChange={e => setForm({ ...form, creditLimit: +e.target.value })} />
-<input placeholder="Opening Outstanding" type="number" onChange={e => setForm({ ...form, outstanding: +e.target.value })} />
+      {error && <p className="text-red-500 text-sm">{error}</p>}
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Customer Name*"
+        value={form.name}
+        onChange={e => setForm({ ...form, name: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Email"
+        type="email"
+        value={form.email}
+        onChange={e => setForm({ ...form, email: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Phone"
+        value={form.phone}
+        onChange={e => setForm({ ...form, phone: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="GSTIN"
+        value={form.gstin}
+        onChange={e => setForm({ ...form, gstin: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="PAN"
+        value={form.pan}
+        onChange={e => setForm({ ...form, pan: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Billing Address"
+        value={form.billingAddress}
+        onChange={e => setForm({ ...form, billingAddress: e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Credit Limit"
+        type="number"
+        min={0}
+        value={form.creditLimit}
+        onChange={e => setForm({ ...form, creditLimit: +e.target.value })}
+      />
+      <input
+        className="border px-3 py-2 rounded w-full"
+        placeholder="Opening Outstanding"
+        type="number"
+        min={0}
+        value={form.receivable}
+        onChange={e => setForm({ ...form, receivable: +e.target.value })}
+      />
 
-      <button onClick={() => onSave(form)} className="w-full bg-blue-600 text-white py-2 rounded font-bold">Save Customer</button>
+      {/* Buttons */}
+      <div className="flex justify-end gap-2 mt-2">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100 transition"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition"
+        >
+          Save Customer
+        </button>
+      </div>
     </div>
   );
 }

@@ -1,35 +1,31 @@
 const TransactionsTab = ({ customer }) => {
-  const transactions = customer?.transactions || [];
+  const ledger = customer.ledger || [];
+
+  if (!ledger.length) {
+    return <p className="text-slate-500">No transactions found</p>;
+  }
 
   return (
-    <div>
-      <h3 className="font-bold text-lg mb-2">Transactions</h3>
-
-      {transactions.length === 0 ? (
-        <div className="text-slate-500 text-center py-6">
-          No transactions found
-        </div>
-      ) : (
-        <table className="w-full border text-left">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {transactions.map((t, idx) => (
-              <tr key={idx} className="border-t">
-                <td>{t.date}</td>
-                <td>{t.type}</td>
-                <td>₹{t.amount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <table className="w-full border text-sm">
+      <thead>
+        <tr>
+          <th className="p-2">Date</th>
+          <th className="p-2">Type</th>
+          <th className="p-2">Debit</th>
+          <th className="p-2">Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        {ledger.map((l, i) => (
+          <tr key={i} className="border-t">
+            <td className="p-2">{l.date}</td>
+            <td className="p-2">{l.type}</td>
+            <td className="p-2">₹{l.debit}</td>
+            <td className="p-2">₹{l.credit}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 };
 

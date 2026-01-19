@@ -1,49 +1,70 @@
+
 import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable"; // ✅ IMPORTANT
+import autoTable from "jspdf-autotable";
 
+/**
+ * Generates a professional invoice PDF
+ * @param {Object} invoice - Invoice data
+ */
 export const generateInvoicePDF = (invoice) => {
-  const doc = new jsPDF();
+  const doc = new jsPDF("p", "pt");
 
-  /* ===== HEADER ===== */
-  doc.setFontSize(18);
-  doc.text("INVOICE", 14, 20);
+  // ===== HEADER =====
+  doc.setFontSize(22);
+  doc.setTextColor(37, 99, 235); // blue header
+  doc.text("INVOICE", 40, 40);
 
-  doc.setFontSize(10);
-  doc.text(`Invoice No: ${invoice.id}`, 14, 30);
-  doc.text(`Date: ${invoice.date}`, 14, 36);
-  doc.text(`Status: ${invoice.status}`, 14, 42);
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.text(`Invoice No: ${invoice.id}`, 40, 60);
+  doc.text(`Date: ${invoice.date}`, 40, 75);
+  doc.text(`Status: ${invoice.status}`, 40, 90);
 
-  /* ===== CUSTOMER ===== */
+  // ===== CUSTOMER INFO =====
   doc.setFontSize(12);
-  doc.text("Bill To:", 14, 54);
-  doc.text(invoice.customerName, 14, 60);
+  doc.setFont("helvetica", "bold");
+  doc.text("Bill To:", 40, 120);
+  doc.setFont("helvetica", "normal");
+  doc.text(invoice.customerName, 40, 135);
+  if (invoice.gstin) doc.text(`GSTIN: ${invoice.gstin}`, 40, 150);
 
-  /* ===== TABLE ===== */
-  autoTable(doc, {
-    startY: 70,
-    head: [["#", "Item", "Qty", "Rate", "GST", "Total"]],
-    body: invoice.items.map((item, i) => [
+  // ===== ITEMS TABLE =====
+  const tableData = invoice.items.map((item, i) => {
+    const itemTax = ((item.qty * item.rate) * (invoice.gstRate || 0)) / 100;
+    const itemTotal = item.qty * item.rate + itemTax;
+    return [
       i + 1,
       item.name,
       item.qty,
-      `₹${item.rate}`,
-      `${item.tax}%`,
-      `₹${item.total}`
-    ]),
-    styles: { fontSize: 10 },
-    headStyles: { fillColor: [37, 99, 235] }
+      `₹${item.rate.toFixed(2)}`,
+      `${invoice.gstRate || 0}%`,
+      `₹${itemTotal.toFixed(2)}`
+    ];
   });
 
-  /* ===== TOTALS ===== */
-  const y = doc.lastAutoTable.finalY + 10;
-  doc.text(`Subtotal: ₹${invoice.subtotal}`, 140, y);
-  doc.text(`GST: ₹${invoice.taxAmount}`, 140, y + 6);
-  doc.setFontSize(13);
-  doc.text(`Grand Total: ₹${invoice.total}`, 140, y + 14);
+  autoTable(doc, {
+    startY: 170,
+    head: [["#", "Item", "Qty", "Rate", "GST", "Total"]],
+    body: tableData,
+    headStyles: { fillColor: [37, 99, 235], textColor: 255, fontSize: 11 },
+    styles: { fontSize: 10 },
+    margin: { left: 40, right: 40 },
+  });
 
-  /* ===== FOOTER ===== */
+  // ===== TOTALS =====
+  const finalY = doc.lastAutoTable.finalY + 20;
+  doc.setFontSize(12);
+  doc.setFont("helvetica", "normal");
+  doc.text(`Subtotal: ₹${invoice.subtotal.toFixed(2)}`, 400, finalY);
+  doc.text(`GST: ₹${invoice.tax.toFixed(2)}`, 400, finalY + 15);
+  doc.setFont("helvetica", "bold");
+  doc.text(`Grand Total: ₹${invoice.total.toFixed(2)}`, 400, finalY + 35);
+
+  // ===== FOOTER =====
   doc.setFontSize(9);
-  doc.text("Thank you for your business!", 14, 285);
+  doc.setFont("helvetica", "normal");
+  doc.text("Thank you for your business!", 40, 780);
 
+  // Save PDF
   doc.save(`${invoice.id}.pdf`);
 };

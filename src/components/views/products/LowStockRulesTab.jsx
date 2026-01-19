@@ -4,60 +4,67 @@ import Card from '../../ui/Card';
 const LowStockRulesTab = ({ product }) => {
   const [rules, setRules] = useState({
     enabled: product?.lowStockRules?.enabled ?? true,
-    threshold: product?.lowStockRules?.threshold || '',
+    threshold: product?.lowStockRules?.threshold || 10,
     notifyEmail: product?.lowStockRules?.notifyEmail ?? true,
     notifyInApp: product?.lowStockRules?.notifyInApp ?? true,
     frequency: product?.lowStockRules?.frequency || 'once',
   });
 
-  const saveRules = () => {
-    console.log(rules);
-    alert('Low stock rules saved');
+  const [message, setMessage] = useState('');
+
+  const handleSave = () => {
+    if (rules.enabled && (!rules.threshold || rules.threshold <= 0)) {
+      setMessage('Threshold must be greater than 0');
+      return;
+    }
+    setMessage('');
+    console.log('Low Stock Rules Saved:', rules);
+    alert('Low stock rules saved successfully!');
   };
 
   return (
     <div className="space-y-6">
 
-      {/* Enable Rule */}
+      {/* Enable / Disable Low Stock Alerts */}
       <Card>
-        <h3 className="font-semibold mb-4">Low Stock Alerts</h3>
+        <h3 className="font-semibold mb-4 text-lg">Low Stock Alerts</h3>
 
         <label className="flex items-center gap-3">
           <input
             type="checkbox"
             checked={rules.enabled}
-            onChange={e =>
-              setRules({ ...rules, enabled: e.target.checked })
-            }
+            onChange={e => setRules({ ...rules, enabled: e.target.checked })}
           />
           <span>Enable low stock alerts for this item</span>
         </label>
       </Card>
 
-      {/* Rule Settings */}
+      {/* Settings Panel */}
       {rules.enabled && (
         <Card>
           <div className="space-y-4">
 
+            {/* Threshold */}
             <div>
-              <label className="text-sm font-medium">
+              <label className="text-sm font-medium block mb-1">
                 Alert when stock goes below
               </label>
               <input
                 type="number"
-                className="input mt-1"
+                min={1}
+                className="input w-full"
                 placeholder="Enter quantity"
                 value={rules.threshold}
                 onChange={e =>
-                  setRules({ ...rules, threshold: e.target.value })
+                  setRules({ ...rules, threshold: Number(e.target.value) })
                 }
               />
             </div>
 
+            {/* Notification Methods */}
             <div>
-              <label className="text-sm font-medium">Notification Methods</label>
-
-              <div className="flex gap-6 mt-2">
+              <label className="text-sm font-medium block mb-1">Notification Methods</label>
+              <div className="flex gap-6 mt-1">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -82,10 +89,11 @@ const LowStockRulesTab = ({ product }) => {
               </div>
             </div>
 
+            {/* Alert Frequency */}
             <div>
-              <label className="text-sm font-medium">Alert Frequency</label>
+              <label className="text-sm font-medium block mb-1">Alert Frequency</label>
               <select
-                className="input mt-1"
+                className="input w-full"
                 value={rules.frequency}
                 onChange={e =>
                   setRules({ ...rules, frequency: e.target.value })
@@ -97,20 +105,23 @@ const LowStockRulesTab = ({ product }) => {
               </select>
             </div>
 
+            {/* Validation / Info Message */}
+            {message && (
+              <p className="text-rose-500 text-sm font-medium">{message}</p>
+            )}
           </div>
         </Card>
       )}
 
-      {/* Save */}
+      {/* Save Button */}
       <div className="text-right">
         <button
-          onClick={saveRules}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          onClick={handleSave}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow"
         >
           Save Rules
         </button>
       </div>
-
     </div>
   );
 };

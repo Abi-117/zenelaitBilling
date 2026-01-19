@@ -32,7 +32,7 @@ export const SIDEBAR_STRUCTURE = [
     { label: 'Estimates / Quotes', id: 'estimates' },
     { label: 'Invoices', id: 'invoices' },
     { label: 'Recurring Invoices', id: 'recurring-invoices' },
-    { label: 'Credit Notes', id: 'credit-notes' }
+    {/*{ label: 'Credit Notes', id: 'credit-notes' }*/}
   ]
 }
 ,
@@ -52,10 +52,10 @@ export const SIDEBAR_STRUCTURE = [
         label: 'Items',
         id: 'items'
       },
-      {
+      /*{
         label: 'Subscription Items',
         id: 'subscription-items'
-      },
+      }*/
       {
         id: 'inventory',
         label: 'Inventory',
