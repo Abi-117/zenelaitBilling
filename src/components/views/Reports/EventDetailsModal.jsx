@@ -1,27 +1,17 @@
-// EventDetailsModal.jsx
 import React from "react";
 import { X } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { markInvoicePaid } from "../../../services/invoiceApi";
+
+const getToken = () => localStorage.getItem("token");
 
 /**
- * Generates a professional invoice PDF from an event object
- * @param {Object} event
+ * Generates a professional invoice PDF from an invoice object
+ * @param {Object} invoice
  */
-const generateInvoicePDF = (event) => {
-  // Map event to invoice structure
-  const invoice = {
-    id: event.ref || "N/A",
-    date: event.time || new Date().toLocaleDateString(),
-    status: event.status || "Unknown",
-    customerName: event.customer || "Unknown",
-    gstin: event.gstin || "",
-    items: event.items || [{ name: event.type || "Service", qty: 1, rate: event.amount || 0 }],
-    gstRate: event.gstRate || 18,
-    subtotal: event.amount || 0,
-    tax: ((event.amount || 0) * (event.gstRate || 18)) / 100,
-    total: (event.amount || 0) * (1 + ((event.gstRate || 18) / 100))
-  };
+const generateInvoicePDF = (invoice) => {
+  if (!invoice) return;
 
   const doc = new jsPDF("p", "pt");
 
@@ -32,29 +22,32 @@ const generateInvoicePDF = (event) => {
 
   doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
-  doc.text(`Invoice No: ${invoice.id}`, 40, 60);
-  doc.text(`Date: ${invoice.date}`, 40, 75);
-  doc.text(`Status: ${invoice.status}`, 40, 90);
+  doc.text(`Invoice No: ${invoice.invoiceNo || "N/A"}`, 40, 60);
+  doc.text(`Date: ${new Date(invoice.date).toLocaleDateString()}`, 40, 75);
+  doc.text(`Status: ${invoice.status || "Unknown"}`, 40, 90);
 
   // ===== CUSTOMER INFO =====
   doc.setFontSize(12);
   doc.setFont("helvetica", "bold");
   doc.text("Bill To:", 40, 120);
   doc.setFont("helvetica", "normal");
-  doc.text(invoice.customerName, 40, 135);
+  doc.text(invoice.customerName || "Unknown", 40, 135);
   if (invoice.gstin) doc.text(`GSTIN: ${invoice.gstin}`, 40, 150);
 
   // ===== ITEMS TABLE =====
-  const tableData = invoice.items.map((item, i) => {
-    const itemTax = ((item.qty * item.rate) * (invoice.gstRate || 0)) / 100;
-    const itemTotal = item.qty * item.rate + itemTax;
+  const items = Array.isArray(invoice.items) ? invoice.items : [];
+  const tableData = items.map((item, i) => {
+    const qty = item.qty || 1;
+    const rate = item.rate || 0;
+    const itemTax = (qty * rate * (invoice.gstRate || 0)) / 100;
+    const itemTotal = qty * rate + itemTax;
     return [
       i + 1,
-      item.name,
-      item.qty,
-      `₹${item.rate.toFixed(2)}`,
+      item.name || "Item",
+      qty,
+      `₹${rate.toFixed(2)}`,
       `${invoice.gstRate || 0}%`,
-      `₹${itemTotal.toFixed(2)}`
+      `₹${itemTotal.toFixed(2)}`,
     ];
   });
 
@@ -71,10 +64,10 @@ const generateInvoicePDF = (event) => {
   const finalY = doc.lastAutoTable?.finalY || 200;
   doc.setFontSize(12);
   doc.setFont("helvetica", "normal");
-  doc.text(`Subtotal: ₹${invoice.subtotal.toFixed(2)}`, 400, finalY);
-  doc.text(`GST: ₹${invoice.tax.toFixed(2)}`, 400, finalY + 15);
+  doc.text(`Subtotal: ₹${(invoice.subtotal || 0).toFixed(2)}`, 400, finalY);
+  doc.text(`GST: ₹${(invoice.tax || 0).toFixed(2)}`, 400, finalY + 15);
   doc.setFont("helvetica", "bold");
-  doc.text(`Grand Total: ₹${invoice.total.toFixed(2)}`, 400, finalY + 35);
+  doc.text(`Grand Total: ₹${(invoice.total || 0).toFixed(2)}`, 400, finalY + 35);
 
   // ===== FOOTER =====
   doc.setFontSize(9);
@@ -82,18 +75,33 @@ const generateInvoicePDF = (event) => {
   doc.text("Thank you for your business!", 40, 780);
 
   // Save PDF
-  doc.save(`${invoice.id}.pdf`);
+  doc.save(`${invoice.invoiceNo || "invoice"}.pdf`);
 };
 
 /**
  * Dummy send email function
  * Replace this with real API/email integration
  */
-const sendInvoiceEmail = (event) => {
-  alert(`Email sent to ${event.customer || "customer"} for invoice ${event.ref || "N/A"}`);
+const sendInvoiceEmail = (invoice) => {
+  alert(`Email sent to ${invoice.customerName || "customer"} for invoice ${invoice.invoiceNo || "N/A"}`);
 };
 
-const EventDetailsModal = ({ event, onClose, onMarkPaid }) => {
+const EventDetailsModal = ({ invoice, onClose, onMarkPaid }) => {
+  if (!invoice) return null;
+
+  const handlePaid = async () => {
+    if (invoice.status === "Paid") return;
+
+    const token = getToken();
+    try {
+      const updated = await markInvoicePaid(invoice._id, token);
+      onMarkPaid && onMarkPaid(updated._id || invoice._id);
+    } catch (err) {
+      console.error("Failed to mark invoice as paid:", err);
+      alert("Failed to mark invoice as paid.");
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-lg relative">
@@ -108,21 +116,31 @@ const EventDetailsModal = ({ event, onClose, onMarkPaid }) => {
 
         {/* Invoice Info */}
         <div className="space-y-2 text-sm">
-          <p><b>Invoice #:</b> {event.ref}</p>
-          <p><b>Customer:</b> {event.customer}</p>
-          <p><b>Type:</b> {event.type}</p>
-          <p><b>Status:</b> {event.status}</p>
-          <p><b>Date:</b> {event.time}</p>
-          {event.amount && <p><b>Amount:</b> ₹{event.amount}</p>}
-          {event.paymentMethod && <p><b>Payment Method:</b> {event.paymentMethod}</p>}
-          {event.message && <p className="text-slate-600">{event.message}</p>}
+          <p><b>Invoice #:</b> {invoice.invoiceNo}</p>
+          <p><b>Customer:</b> {invoice.customerName}</p>
+          <p><b>Status:</b> {invoice.status}</p>
+          <p><b>Date:</b> {new Date(invoice.date).toLocaleDateString()}</p>
+          <p><b>Total:</b> ₹{(invoice.total || 0).toLocaleString()}</p>
+
+          {invoice.items && invoice.items.length > 0 && (
+            <>
+              <h4 className="mt-2 font-semibold">Items:</h4>
+              <ul className="list-disc list-inside text-sm">
+                {invoice.items.map((item, idx) => (
+                  <li key={idx}>
+                    {item.name} - {item.qty} × ₹{item.rate} = ₹{item.amount}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex gap-2 mt-4 flex-wrap">
-          {event.status === "Pending" && (
+          {invoice.status !== "Paid" && (
             <button
-              onClick={() => onMarkPaid(event.id)}
+              onClick={handlePaid}
               className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700"
             >
               Mark as Paid
@@ -130,14 +148,14 @@ const EventDetailsModal = ({ event, onClose, onMarkPaid }) => {
           )}
 
           <button
-            onClick={() => generateInvoicePDF(event)}
+            onClick={() => generateInvoicePDF(invoice)}
             className="bg-slate-100 text-slate-800 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-200"
           >
             Download PDF
           </button>
 
           <button
-            onClick={() => sendInvoiceEmail(event)}
+            onClick={() => sendInvoiceEmail(invoice)}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700"
           >
             Send Email

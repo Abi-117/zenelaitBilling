@@ -5,7 +5,7 @@ import InventoryTab from './InventoryTab';
 import BarcodeTab from './BarcodeTab';
 import LowStockRulesTab from './LowStockRulesTab';
 
-const tabs = ['Pricing', 'Tax', 'Inventory', 'Barcode', 'Low Stock'];
+const tabs = ['Pricing', 'Tax', /*'Inventory',*/ 'Barcode', 'Low Stock'];
 
 const ProductDetailsView = ({ product }) => {
   // Local tab state
@@ -53,7 +53,7 @@ const ProductDetailsView = ({ product }) => {
       <div className="mt-4">
         {activeTab === 'Pricing' && <PricingTab product={product} />}
         {activeTab === 'Tax' && <TaxTab product={product} />}
-        {activeTab === 'Inventory' && <InventoryTab product={product} />}
+        {/*{activeTab === 'Inventory' && <InventoryTab product={product} />}*/}
         {activeTab === 'Barcode' && <BarcodeTab product={product} />}
         {activeTab === 'Low Stock' && <LowStockRulesTab product={product} />}
       </div>

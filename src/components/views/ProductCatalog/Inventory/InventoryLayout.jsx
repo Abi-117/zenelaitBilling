@@ -12,7 +12,7 @@ const InventoryLayout = () => {
     { id: 'stock', label: 'Stock In / Out' },
     { id: 'batch', label: 'Batch Management' },
     { id: 'expiry', label: 'Expiry Tracking' },
-    { id: 'adjustment', label: 'Stock Adjustment' },
+    //{ id: 'adjustment', label: 'Stock Adjustment' },
     { id: 'valuation', label: 'Stock Valuation' },
   ];
 
@@ -39,7 +39,7 @@ const InventoryLayout = () => {
       {activeTab === 'stock' && <StockView />}
       {activeTab === 'batch' && <BatchManagementView />}
       {activeTab === 'expiry' && <ExpiryTrackingView />}
-      {activeTab === 'adjustment' && <StockAdjustmentView />}
+      {/* {activeTab === 'adjustment' && <StockAdjustmentView />} */}
       {activeTab === 'valuation' && <StockValuationView />}
     </div>
   );

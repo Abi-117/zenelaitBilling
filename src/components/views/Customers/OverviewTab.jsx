@@ -107,20 +107,12 @@ const OverviewTab = ({ customer, onUpdate }) => {
         </p>
 
         <p>
-          Outstanding: ₹
-          {isEdit ? (
-            <input
-              type="number"
-              className="border px-2 py-1 rounded text-sm w-28"
-              value={data.outstanding || 0}
-              onChange={e =>
-                setData({ ...data, outstanding: +e.target.value })
-              }
-            />
-          ) : (
-            customer.outstanding
-          )}
-        </p>
+  Outstanding: ₹
+  <span className="font-semibold text-red-600">
+    {customer.outstanding ?? 0}
+  </span>
+</p>
+
 
         <p>
           Payment Terms:{' '}

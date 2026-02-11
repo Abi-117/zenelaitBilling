@@ -1,19 +1,16 @@
-import { useState, useEffect } from 'react';
-import Card from '../../ui/Card';
+import { useState, useEffect } from "react";
+import Card from "../../ui/Card";
 
 const TaxTab = ({ product, onUpdate }) => {
-  // Base price & tax inputs
+  /* ---------------- STATE ---------------- */
   const [taxData, setTaxData] = useState({
     price: product?.price || 0,
     taxPercent: product?.tax || 0,
     taxInclusive: false,
-    cgst: 0,
-    sgst: 0,
-    igst: 0,
   });
 
-  // Computed values
   const [computed, setComputed] = useState({
+    basePrice: 0,
     taxAmount: 0,
     totalPrice: 0,
     cgst: 0,
@@ -21,11 +18,15 @@ const TaxTab = ({ product, onUpdate }) => {
     igst: 0,
   });
 
-  // Compute tax whenever input changes
+  const [errors, setErrors] = useState({});
+
+  /* ---------------- COMPUTE TAX ---------------- */
   useEffect(() => {
     const { price, taxPercent, taxInclusive } = taxData;
-    let totalTax = 0;
+    if (!price || price <= 0 || taxPercent < 0) return;
+
     let basePrice = price;
+    let totalTax = 0;
 
     if (taxInclusive) {
       totalTax = (price * taxPercent) / (100 + taxPercent);
@@ -34,12 +35,12 @@ const TaxTab = ({ product, onUpdate }) => {
       totalTax = (price * taxPercent) / 100;
     }
 
-    // Split for India GST (50% CGST, 50% SGST) if tax < 28%, otherwise IGST
     const cgst = taxPercent <= 28 ? parseFloat((totalTax / 2).toFixed(2)) : 0;
     const sgst = taxPercent <= 28 ? parseFloat((totalTax / 2).toFixed(2)) : 0;
     const igst = taxPercent > 28 ? parseFloat(totalTax.toFixed(2)) : 0;
 
     setComputed({
+      basePrice: parseFloat(basePrice.toFixed(2)),
       taxAmount: parseFloat(totalTax.toFixed(2)),
       totalPrice: parseFloat((basePrice + totalTax).toFixed(2)),
       cgst,
@@ -48,50 +49,68 @@ const TaxTab = ({ product, onUpdate }) => {
     });
   }, [taxData]);
 
-  const saveTax = () => {
-    if (taxData.price <= 0) return alert('Price must be greater than 0');
-    console.log('Saved Tax Data:', { ...taxData, computed });
-    if (onUpdate) onUpdate({ ...taxData, computed });
-    alert('Tax details saved!');
+  /* ---------------- VALIDATION ---------------- */
+  const validate = () => {
+    const e = {};
+    if (!taxData.price || taxData.price <= 0) e.price = "Price must be > 0";
+    if (taxData.taxPercent < 0) e.taxPercent = "Tax cannot be negative";
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
+  /* ---------------- ACTION ---------------- */
+  const handleCheck = () => {
+    if (!validate()) return alert("❌ Check fields, some values are invalid.");
+    alert("✅ Tax data looks good!");
+    if (onUpdate) onUpdate({ ...taxData, computed });
+  };
+
+  /* ---------------- UI ---------------- */
   return (
     <div className="space-y-6">
-
       {/* Price & Tax Inputs */}
       <Card>
         <h3 className="font-semibold mb-4">Price & Tax</h3>
         <div className="grid grid-cols-3 gap-4">
-          <div>
+          {/* Price */}
+          <div className="flex flex-col">
             <label className="block text-sm font-medium">Price</label>
             <input
               type="number"
               className="input mt-1"
               value={taxData.price}
-              onChange={e =>
+              onChange={(e) =>
                 setTaxData({ ...taxData, price: Number(e.target.value) })
               }
             />
+            {errors.price && (
+              <span className="text-xs text-red-500">{errors.price}</span>
+            )}
           </div>
 
-          <div>
+          {/* Tax % */}
+          <div className="flex flex-col">
             <label className="block text-sm font-medium">Tax (%)</label>
             <input
               type="number"
               className="input mt-1"
               value={taxData.taxPercent}
-              onChange={e =>
+              onChange={(e) =>
                 setTaxData({ ...taxData, taxPercent: Number(e.target.value) })
               }
             />
+            {errors.taxPercent && (
+              <span className="text-xs text-red-500">{errors.taxPercent}</span>
+            )}
           </div>
 
+          {/* Tax Inclusive */}
           <div className="flex items-center mt-6 gap-2">
             <input
               type="checkbox"
               id="taxInclusive"
               checked={taxData.taxInclusive}
-              onChange={e =>
+              onChange={(e) =>
                 setTaxData({ ...taxData, taxInclusive: e.target.checked })
               }
               className="form-checkbox"
@@ -103,11 +122,11 @@ const TaxTab = ({ product, onUpdate }) => {
         </div>
       </Card>
 
-      {/* Tax Breakdown */}
+      {/* Tax Preview */}
       <Card>
         <h3 className="font-semibold mb-2">Tax Preview</h3>
         <div className="space-y-1 text-sm">
-          <p>Base Price: ₹{(taxData.price - computed.taxAmount).toFixed(2)}</p>
+          <p>Base Price: ₹{computed.basePrice}</p>
           {computed.cgst > 0 && <p>CGST: ₹{computed.cgst}</p>}
           {computed.sgst > 0 && <p>SGST: ₹{computed.sgst}</p>}
           {computed.igst > 0 && <p>IGST: ₹{computed.igst}</p>}
@@ -119,10 +138,10 @@ const TaxTab = ({ product, onUpdate }) => {
       {/* Actions */}
       <div className="flex justify-end gap-3">
         <button
-          onClick={saveTax}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+          onClick={handleCheck}
+          className="bg-emerald-600 text-white px-4 py-2 rounded hover:bg-emerald-700 transition"
         >
-          Save Tax
+          Check Tax
         </button>
       </div>
     </div>

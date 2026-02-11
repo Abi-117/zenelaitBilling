@@ -1,172 +1,183 @@
-import { useState } from 'react';
-import Card from '../../ui/Card';
+import { useEffect, useMemo, useState } from "react";
+import Card from "../../ui/Card";
+import { updateItem, fetchItems } from "../../../services/api";
 
-const InventoryTab = ({ product }) => {
+const emptyLocation = () => ({
+  id: crypto.randomUUID(),
+  name: "",
+  openingStock: 0,
+});
+
+const InventoryTab = ({ itemId }) => {
   const [inventory, setInventory] = useState({
-    trackStock: product?.inventory?.trackStock ?? true,
-    openingStock: product?.inventory?.openingStock || '',
-    reorderLevel: product?.inventory?.reorderLevel || '',
-    maxStock: product?.inventory?.maxStock || '',
-    enableBatch: product?.inventory?.enableBatch ?? false,
-    enableExpiry: product?.inventory?.enableExpiry ?? false,
-    locations: product?.inventory?.locations || [
-      { id: 1, name: 'Main Warehouse', stock: 0, batchEnabled: false, expiryEnabled: false }
-    ],
+    trackStock: true,
+    reorderLevel: 0,
+    maxStock: 0,
+    enableBatch: false,
+    enableExpiry: false,
+    locations: [emptyLocation()],
   });
 
-  // Add new stock location
-  const addLocation = () => {
-    setInventory({
-      ...inventory,
-      locations: [
-        ...inventory.locations,
-        { id: Date.now(), name: '', stock: 0, batchEnabled: false, expiryEnabled: false }
-      ],
-    });
-  };
+  const [loading, setLoading] = useState(false);
 
-  // Update location data
+  /* ================= FETCH INVENTORY ================= */
+  useEffect(() => {
+    if (!itemId) return;
+
+    fetchItems()
+      .then((items) => {
+        const item = items.find((i) => i._id === itemId);
+        if (item?.inventory) setInventory(item.inventory);
+      })
+      .catch(() => {});
+  }, [itemId]);
+
+  /* ================= TOTAL STOCK ================= */
+  const totalStock = useMemo(() => {
+    return inventory.locations.reduce(
+      (sum, l) => sum + Number(l.openingStock || 0),
+      0
+    );
+  }, [inventory.locations]);
+
+  /* ================= HANDLERS ================= */
   const updateLocation = (id, field, value) => {
-    setInventory({
-      ...inventory,
-      locations: inventory.locations.map(loc =>
-        loc.id === id ? { ...loc, [field]: value } : loc
+    setInventory((prev) => ({
+      ...prev,
+      locations: prev.locations.map((l) =>
+        l.id === id ? { ...l, [field]: value } : l
       ),
-    });
+    }));
   };
 
-  // Delete location
-  const removeLocation = id => {
-    setInventory({
-      ...inventory,
-      locations: inventory.locations.filter(loc => loc.id !== id),
-    });
+  const addLocation = () => {
+    setInventory((prev) => ({
+      ...prev,
+      locations: [...prev.locations, emptyLocation()],
+    }));
   };
 
-  const saveInventory = () => {
-    if (inventory.trackStock && inventory.openingStock === '') return alert('Enter opening stock');
-    console.log('Inventory saved:', inventory);
-    alert('Inventory settings saved!');
+  const removeLocation = (id) => {
+    setInventory((prev) => ({
+      ...prev,
+      locations: prev.locations.filter((l) => l.id !== id),
+    }));
   };
 
+  /* ================= SAVE ================= */
+  const saveInventory = async () => {
+    setLoading(true);
+    try {
+      await updateItem(itemId, { inventory });
+      alert("Inventory settings saved");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save inventory");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* ================= UI ================= */
   return (
     <div className="space-y-6">
-
-      {/* Stock Tracking */}
+      {/* STOCK SETTINGS */}
       <Card>
         <h3 className="font-semibold mb-4">Stock Settings</h3>
-        <div className="space-y-4">
 
-          <label className="flex items-center gap-3">
+        <label className="flex items-center gap-2 mb-4">
+          <input
+            type="checkbox"
+            checked={inventory.trackStock}
+            onChange={(e) =>
+              setInventory({ ...inventory, trackStock: e.target.checked })
+            }
+          />
+          Track inventory
+        </label>
+
+        {inventory.trackStock && (
+          <div className="grid grid-cols-3 gap-4">
             <input
-              type="checkbox"
-              checked={inventory.trackStock}
-              onChange={e => setInventory({ ...inventory, trackStock: e.target.checked })}
-            />
-            <span>Track inventory for this item</span>
-          </label>
-
-          {inventory.trackStock && (
-            <div className="grid grid-cols-3 gap-4">
-              <input
-                type="number"
-                className="input"
-                placeholder="Opening Stock"
-                value={inventory.openingStock}
-                onChange={e => setInventory({ ...inventory, openingStock: e.target.value })}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Reorder Level (Low Stock Alert)"
-                value={inventory.reorderLevel}
-                onChange={e => setInventory({ ...inventory, reorderLevel: e.target.value })}
-              />
-              <input
-                type="number"
-                className="input"
-                placeholder="Maximum Stock"
-                value={inventory.maxStock}
-                onChange={e => setInventory({ ...inventory, maxStock: e.target.value })}
-              />
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Advanced Tracking */}
-      <Card>
-        <h3 className="font-semibold mb-4">Advanced Tracking</h3>
-        <div className="space-y-3">
-
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={inventory.enableBatch}
-              onChange={e => setInventory({ ...inventory, enableBatch: e.target.checked })}
-              disabled={!inventory.trackStock}
-            />
-            <span>Enable Batch / Lot tracking</span>
-          </label>
-
-          <label className="flex items-center gap-3">
-            <input
-              type="checkbox"
-              checked={inventory.enableExpiry}
-              onChange={e => setInventory({ ...inventory, enableExpiry: e.target.checked })}
-              disabled={!inventory.trackStock}
-            />
-            <span>Enable Expiry date tracking</span>
-          </label>
-
-          {!inventory.trackStock && (
-            <p className="text-sm text-slate-500">
-              Enable stock tracking to use batch & expiry features
-            </p>
-          )}
-        </div>
-      </Card>
-
-      {/* Multiple Stock Locations */}
-      <Card>
-        <h3 className="font-semibold mb-4">Stock Locations</h3>
-        {inventory.locations.map(loc => (
-          <div key={loc.id} className="grid grid-cols-4 gap-3 items-center mb-2">
-            <input
-              type="text"
+              type="number"
               className="input"
-              placeholder="Location Name"
-              value={loc.name}
-              onChange={e => updateLocation(loc.id, 'name', e.target.value)}
+              placeholder="Reorder Level"
+              value={inventory.reorderLevel}
+              onChange={(e) =>
+                setInventory({ ...inventory, reorderLevel: e.target.value })
+              }
             />
             <input
               type="number"
               className="input"
-              placeholder="Stock Qty"
-              value={loc.stock}
-              onChange={e => updateLocation(loc.id, 'stock', Number(e.target.value))}
+              placeholder="Max Stock"
+              value={inventory.maxStock}
+              onChange={(e) =>
+                setInventory({ ...inventory, maxStock: e.target.value })
+              }
             />
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={loc.batchEnabled}
-                onChange={e => updateLocation(loc.id, 'batchEnabled', e.target.checked)}
-                disabled={!inventory.enableBatch}
-              />
-              Batch
-            </label>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={loc.expiryEnabled}
-                onChange={e => updateLocation(loc.id, 'expiryEnabled', e.target.checked)}
-                disabled={!inventory.enableExpiry}
-              />
-              Expiry
-            </label>
+          </div>
+        )}
+      </Card>
+
+      {/* BATCH / EXPIRY */}
+      <Card>
+        <h3 className="font-semibold mb-4">Advanced Tracking</h3>
+
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            disabled={!inventory.trackStock}
+            checked={inventory.enableBatch}
+            onChange={(e) =>
+              setInventory({ ...inventory, enableBatch: e.target.checked })
+            }
+          />
+          Enable Batch Tracking
+        </label>
+
+        <label className="flex items-center gap-2 mt-2">
+          <input
+            type="checkbox"
+            disabled={!inventory.trackStock}
+            checked={inventory.enableExpiry}
+            onChange={(e) =>
+              setInventory({ ...inventory, enableExpiry: e.target.checked })
+            }
+          />
+          Enable Expiry Tracking
+        </label>
+      </Card>
+
+      {/* LOCATIONS */}
+      <Card>
+        <h3 className="font-semibold mb-4">Opening Stock (By Location)</h3>
+
+        {inventory.locations.map((loc) => (
+          <div
+            key={loc.id}
+            className="grid grid-cols-3 gap-3 items-center mb-2"
+          >
+            <input
+              className="input"
+              placeholder="Location"
+              value={loc.name}
+              onChange={(e) =>
+                updateLocation(loc.id, "name", e.target.value)
+              }
+            />
+            <input
+              type="number"
+              className="input"
+              placeholder="Opening Stock"
+              value={loc.openingStock}
+              onChange={(e) =>
+                updateLocation(loc.id, "openingStock", e.target.value)
+              }
+            />
             <button
-              className="text-rose-500 hover:bg-rose-50 px-2 py-1 rounded"
               onClick={() => removeLocation(loc.id)}
+              className="text-red-500"
             >
               Remove
             </button>
@@ -175,22 +186,34 @@ const InventoryTab = ({ product }) => {
 
         <button
           onClick={addLocation}
-          className="mt-2 px-3 py-2 bg-blue-600 text-white rounded flex items-center gap-2"
+          className="mt-3 px-3 py-2 bg-blue-600 text-white rounded"
         >
-          Add Location
+          + Add Location
         </button>
       </Card>
 
-      {/* Save */}
+      {/* SUMMARY */}
+      <Card>
+        <h3 className="font-semibold mb-2">Inventory Summary</h3>
+        <p>
+          Total Opening Stock: <b>{totalStock}</b>
+        </p>
+
+        {totalStock < inventory.reorderLevel && (
+          <p className="text-red-600 mt-1">⚠ Stock below reorder level</p>
+        )}
+      </Card>
+
+      {/* SAVE */}
       <div className="text-right">
         <button
+          disabled={loading}
           onClick={saveInventory}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          className="bg-blue-600 text-white px-5 py-2 rounded"
         >
-          Save Inventory
+          {loading ? "Saving..." : "Save Inventory"}
         </button>
       </div>
-
     </div>
   );
 };

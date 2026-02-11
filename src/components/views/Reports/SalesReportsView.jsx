@@ -1,70 +1,78 @@
-// SalesReportsView.jsx
-import React, { useState } from "react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
-import EventDetailsModal from "./EventDetailsModal"; // Your modal
-
-const dummyInvoices = [
-  {
-    id: "INV-001",
-    ref: "INV-001",
-    type: "Product Sale",
-    entity: "Acme Corp",
-    status: "Pending",
-    time: "2026-01-15",
-    amount: 25000,
-    customer: "Acme Corp",
-    paymentMethod: "Bank Transfer",
-    message: "Monthly subscription",
-  },
-  {
-    id: "INV-002",
-    ref: "INV-002",
-    type: "Service",
-    entity: "Beta Ltd",
-    status: "Paid",
-    time: "2026-01-10",
-    amount: 45000,
-    customer: "Beta Ltd",
-    paymentMethod: "Credit Card",
-  },
-  {
-    id: "INV-003",
-    ref: "INV-003",
-    type: "Product Sale",
-    entity: "Gamma Inc",
-    status: "Overdue",
-    time: "2026-01-05",
-    amount: 32000,
-    customer: "Gamma Inc",
-    paymentMethod: "Cash",
-  },
-];
-
-const monthlySales = [
-  { month: "Jan", revenue: 120000 },
-  { month: "Feb", revenue: 95000 },
-  { month: "Mar", revenue: 150000 },
-  { month: "Apr", revenue: 130000 },
-  { month: "May", revenue: 175000 },
-  { month: "Jun", revenue: 200000 },
-];
+import React, { useState, useEffect } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
+} from "recharts";
+import EventDetailsModal from "./EventDetailsModal";
+import { fetchInvoices, fetchMonthlySales, markInvoicePaid } from "../../../services/invoiceApi";
 
 const SalesReportsView = () => {
+  const [invoices, setInvoices] = useState([]);
+  const [monthlySales, setMonthlySales] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load invoices and sales
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [invoiceData, salesData] = await Promise.all([
+        fetchInvoices(),
+        fetchMonthlySales(),
+      ]);
+      setInvoices(invoiceData);
+      setMonthlySales(salesData);
+    } catch (err) {
+      console.error("Failed to load sales data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handleInvoicePaid = async (invoiceId) => {
+    try {
+      await markInvoicePaid(invoiceId);
+      await loadData();
+      setSelectedInvoice(null);
+    } catch (err) {
+      console.error("Failed to mark invoice paid:", err);
+    }
+  };
+
+  const totalRevenue = monthlySales.reduce((sum, m) => sum + m.revenue, 0);
+  const outstanding = invoices
+    .filter(inv => inv.status !== "Paid")
+    .reduce((sum, inv) => sum + inv.total, 0);
+  const avgInvoice = invoices.length
+    ? invoices.reduce((sum, inv) => sum + inv.total, 0) / invoices.length
+    : 0;
+  const paidTotal = invoices
+    .filter(inv => inv.status === "Paid")
+    .reduce((sum, inv) => sum + inv.total, 0);
+  const totalCustomers = new Set(invoices.map(inv => inv.customerName)).size;
 
   const stats = [
-    { label: "Total Revenue", value: "₹4,82,500" },
-    { label: "Outstanding Invoices", value: "₹78,200" },
-    { label: "Avg Invoice Value", value: "₹12,450" },
-    { label: "Paid Invoices", value: "₹3,50,000" },
-    { label: "Pending Invoices", value: "₹78,200" },
-    { label: "GST Collected", value: "₹52,300" },
-    { label: "Total Customers", value: 45 },
+    { label: "Total Revenue", value: `₹${totalRevenue.toLocaleString()}` },
+    { label: "Outstanding Invoices", value: `₹${outstanding.toLocaleString()}` },
+    { label: "Avg Invoice Value", value: `₹${Math.round(avgInvoice).toLocaleString()}` },
+    { label: "Paid Invoices", value: `₹${paidTotal.toLocaleString()}` },
+    { label: "Pending Invoices", value: `₹${outstanding.toLocaleString()}` },
+    { label: "Total Customers", value: totalCustomers },
   ];
 
   return (
     <div className="space-y-6">
-      {/* Metrics */}
+      {loading && <p className="text-center text-sm text-slate-400">Loading...</p>}
+
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {stats.map((stat, i) => (
           <div key={i} className="bg-white rounded-xl shadow p-6">
@@ -74,7 +82,6 @@ const SalesReportsView = () => {
         ))}
       </div>
 
-      {/* Monthly Sales Chart */}
       <div className="bg-white rounded-xl shadow p-6">
         <h2 className="text-lg font-bold mb-4">Monthly Sales Summary</h2>
         <div className="h-64">
@@ -90,34 +97,28 @@ const SalesReportsView = () => {
         </div>
       </div>
 
-      {/* Recent Invoices Table */}
       <div className="bg-white rounded-xl shadow p-6">
         <h2 className="text-lg font-bold mb-4">Recent Invoices</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b">
-                <th className="py-2 px-3 text-sm text-slate-500">Invoice #</th>
-                <th className="py-2 px-3 text-sm text-slate-500">Customer</th>
-                <th className="py-2 px-3 text-sm text-slate-500">Amount</th>
-                <th className="py-2 px-3 text-sm text-slate-500">Status</th>
-                <th className="py-2 px-3 text-sm text-slate-500">Actions</th>
+                <th>Invoice #</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {dummyInvoices.map((inv) => (
-                <tr key={inv.id} className="border-b hover:bg-slate-50">
-                  <td className="py-2 px-3 text-sm font-medium">{inv.ref}</td>
-                  <td className="py-2 px-3 text-sm">{inv.customer}</td>
-                  <td className="py-2 px-3 text-sm">₹{inv.amount}</td>
-                  <td className="py-2 px-3 text-sm">{inv.status}</td>
-                  <td className="py-2 px-3 text-sm flex gap-2">
-                    <button
-                      onClick={() => setSelectedInvoice(inv)}
-                      className="text-blue-600 hover:underline"
-                    >
-                      View
-                    </button>
+              {invoices.map(inv => (
+                <tr key={inv._id} className="border-b hover:bg-slate-50">
+                  <td>{inv.invoiceNo}</td>
+                  <td>{inv.customerName}</td>
+                  <td>₹{inv.total.toLocaleString()}</td>
+                  <td>{inv.status}</td>
+                  <td>
+                    <button onClick={() => setSelectedInvoice(inv)}>View</button>
                   </td>
                 </tr>
               ))}
@@ -126,15 +127,11 @@ const SalesReportsView = () => {
         </div>
       </div>
 
-      {/* Invoice Modal */}
       {selectedInvoice && (
         <EventDetailsModal
-          event={selectedInvoice}
+          invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
-          onMarkPaid={(id) => {
-            alert(`Invoice ${id} marked as Paid`);
-            setSelectedInvoice(null);
-          }}
+          onMarkPaid={handleInvoicePaid}
         />
       )}
     </div>

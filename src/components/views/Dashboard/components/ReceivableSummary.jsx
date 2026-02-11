@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -5,17 +6,29 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-} from 'recharts';
+} from "recharts";
+import { fetchReceivables } from "../../../../services/dashboardApi";
 
-const data = [
-  { name: 'Current', amount: 0 },
-  { name: '1-15', amount: 0 },
-  { name: '16-30', amount: 0 },
-  { name: '31-45', amount: 0 },
-  { name: '>45', amount: 372580 },
-];
+const DEFAULT_RECEIVABLE = {
+  total: 0,
+  chart: [],
+};
 
-const ReceivableSummary = () => {
+const ReceivableSummary = ({ dataRange }) => {
+  const [receivable, setReceivable] = useState(DEFAULT_RECEIVABLE);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      const data = await fetchReceivables(dataRange);
+      setReceivable(data || DEFAULT_RECEIVABLE);
+      setLoading(false);
+    };
+
+    loadData();
+  }, [dataRange]);
+
   return (
     <div className="bg-white rounded-xl border p-5">
       <h3 className="text-sm font-semibold text-slate-600 mb-1">
@@ -23,15 +36,21 @@ const ReceivableSummary = () => {
       </h3>
 
       <h2 className="text-xl font-bold mb-3">
-        Rs.372,580.05
+        {loading
+          ? "Loading..."
+          : `₹${(receivable.total || 0).toLocaleString("en-IN")}`}
       </h2>
 
       <div className="h-48">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data}>
+          <BarChart data={receivable.chart || []}>
             <XAxis dataKey="name" />
             <YAxis hide />
-            <Tooltip />
+            <Tooltip
+              formatter={(value) =>
+                `₹${Number(value).toLocaleString("en-IN")}`
+              }
+            />
             <Bar dataKey="amount" fill="#c2410c" />
           </BarChart>
         </ResponsiveContainer>

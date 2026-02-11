@@ -3,13 +3,13 @@ import { useState, useEffect } from 'react';
 import SalesReportsView from './SalesReportsView';
 import PaymentAgingReportsView from './PaymentAgingReportsView';
 import TaxReportsView from './TaxReportsView';
-import AIInsightsForecastingView from './AIInsightsForecastingView';
-import UserManagementView from './UserManagementView';
+//import AIInsightsForecastingView from './AIInsightsForecastingView';
+//import UserManagementView from './UserManagementView';
 
 import StockReportsView from './StockReportsView';
 import ProfitLossReportsView from './ProfitLossReportsView';
 import ExpenseReportsView from './ExpenseReportsView';
-import LedgerReportsView from './LedgerReportsView';
+//import LedgerReportsView from './LedgerReportsView';
 import OutstandingReportsView from './OutstandingReportsView';
 
 const ReportsView = ({ defaultTab = 'sales' }) => {
@@ -26,10 +26,10 @@ const ReportsView = ({ defaultTab = 'sales' }) => {
     { id: 'stock', label: 'Stock' },
     { id: 'pl', label: 'Profit & Loss' },
     { id: 'expense', label: 'Expenses' },
-    { id: 'ledger', label: 'Ledger' },
+    //{ id: 'ledger', label: 'Ledger' },
     { id: 'outstanding', label: 'Outstanding' },
-    { id: 'ai', label: 'AI Insights' },
-    { id: 'users', label: 'Users & Staff' },
+    // id: 'ai', label: 'AI Insights' },
+    //{ id: 'users', label: 'Users & Staff' },
   ];
 
   return (
@@ -66,10 +66,10 @@ const ReportsView = ({ defaultTab = 'sales' }) => {
       {activeTab === 'stock' && <StockReportsView />}
       {activeTab === 'pl' && <ProfitLossReportsView />}
       {activeTab === 'expense' && <ExpenseReportsView />}
-      {activeTab === 'ledger' && <LedgerReportsView />}
+      {/* {activeTab === 'ledger' && <LedgerReportsView />} */}
       {activeTab === 'outstanding' && <OutstandingReportsView />}
-      {activeTab === 'ai' && <AIInsightsForecastingView />}
-      {activeTab === 'users' && <UserManagementView />}
+      {/* {activeTab === 'ai' && <AIInsightsForecastingView />}
+      {activeTab === 'users' && <UserManagementView />} */}
     </div>
   );
 };

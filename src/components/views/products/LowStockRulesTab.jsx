@@ -1,125 +1,186 @@
-import { useState } from 'react';
-import Card from '../../ui/Card';
+import { useEffect, useState } from "react";
+import Card from "../../ui/Card";
+import api from "../../../services/api";
 
-const LowStockRulesTab = ({ product }) => {
+/**
+ * LowStockRulesTab
+ * @param {string} itemId - MongoDB _id of the ITEM (required)
+ */
+const LowStockRulesTab = ({ itemId }) => {
   const [rules, setRules] = useState({
-    enabled: product?.lowStockRules?.enabled ?? true,
-    threshold: product?.lowStockRules?.threshold || 10,
-    notifyEmail: product?.lowStockRules?.notifyEmail ?? true,
-    notifyInApp: product?.lowStockRules?.notifyInApp ?? true,
-    frequency: product?.lowStockRules?.frequency || 'once',
+    enabled: false,
+    threshold: 10,
+    notifyEmail: true,
+    notifyInApp: true,
+    frequency: "once",
   });
 
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleSave = () => {
-    if (rules.enabled && (!rules.threshold || rules.threshold <= 0)) {
-      setMessage('Threshold must be greater than 0');
+  /* ---------------- FETCH RULES ---------------- */
+  useEffect(() => {
+    if (!itemId) return;
+
+    const fetchRules = async () => {
+      try {
+        const res = await api.get(`/low-stock/${itemId}`);
+        if (res?.data) {
+          setRules({
+            enabled: res.data.enabled ?? false,
+            threshold: res.data.threshold ?? 10,
+            notifyEmail: res.data.notifyEmail ?? true,
+            notifyInApp: res.data.notifyInApp ?? true,
+            frequency: res.data.frequency ?? "once",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch low stock rules", err);
+      }
+    };
+
+    fetchRules();
+  }, [itemId]);
+
+  /* ---------------- SAVE RULES ---------------- */
+  const handleSave = async () => {
+    if (!itemId) return;
+
+    if (rules.enabled && rules.threshold <= 0) {
+      setError("Threshold must be greater than 0");
       return;
     }
-    setMessage('');
-    console.log('Low Stock Rules Saved:', rules);
-    alert('Low stock rules saved successfully!');
+
+    try {
+      setError("");
+      setLoading(true);
+      await api.put(`/low-stock/${itemId}`, rules);
+      alert("Low stock rules saved successfully");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save low stock rules");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="space-y-6">
-
-      {/* Enable / Disable Low Stock Alerts */}
+  /* ---------------- EMPTY STATE ---------------- */
+  if (!itemId) {
+    return (
       <Card>
-        <h3 className="font-semibold mb-4 text-lg">Low Stock Alerts</h3>
+        <p className="text-slate-500 text-sm">
+          Select an item to configure low stock alerts
+        </p>
+      </Card>
+    );
+  }
 
+  /* ---------------- UI ---------------- */
+  return (
+    <div className="space-y-4">
+      {/* Enable / Disable */}
+      <Card>
         <label className="flex items-center gap-3">
           <input
             type="checkbox"
             checked={rules.enabled}
-            onChange={e => setRules({ ...rules, enabled: e.target.checked })}
+            onChange={(e) =>
+              setRules({ ...rules, enabled: e.target.checked })
+            }
           />
-          <span>Enable low stock alerts for this item</span>
+          <span className="font-medium">Enable Low Stock Alerts</span>
         </label>
       </Card>
 
-      {/* Settings Panel */}
+      {/* Settings */}
       {rules.enabled && (
-        <Card>
-          <div className="space-y-4">
+        <Card className="space-y-4">
+          {/* Threshold */}
+          <div>
+            <label className="text-sm font-medium block mb-1">
+              Alert when stock goes below
+            </label>
+            <input
+              type="number"
+              min={1}
+              className="input w-full"
+              value={rules.threshold}
+              onChange={(e) =>
+                setRules({
+                  ...rules,
+                  threshold: Number(e.target.value),
+                })
+              }
+            />
+          </div>
 
-            {/* Threshold */}
-            <div>
-              <label className="text-sm font-medium block mb-1">
-                Alert when stock goes below
-              </label>
+          {/* Notifications */}
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2">
               <input
-                type="number"
-                min={1}
-                className="input w-full"
-                placeholder="Enter quantity"
-                value={rules.threshold}
-                onChange={e =>
-                  setRules({ ...rules, threshold: Number(e.target.value) })
+                type="checkbox"
+                checked={rules.notifyInApp}
+                onChange={(e) =>
+                  setRules({
+                    ...rules,
+                    notifyInApp: e.target.checked,
+                  })
                 }
               />
-            </div>
+              In-App Notification
+            </label>
 
-            {/* Notification Methods */}
-            <div>
-              <label className="text-sm font-medium block mb-1">Notification Methods</label>
-              <div className="flex gap-6 mt-1">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={rules.notifyInApp}
-                    onChange={e =>
-                      setRules({ ...rules, notifyInApp: e.target.checked })
-                    }
-                  />
-                  In-App Notification
-                </label>
-
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={rules.notifyEmail}
-                    onChange={e =>
-                      setRules({ ...rules, notifyEmail: e.target.checked })
-                    }
-                  />
-                  Email Notification
-                </label>
-              </div>
-            </div>
-
-            {/* Alert Frequency */}
-            <div>
-              <label className="text-sm font-medium block mb-1">Alert Frequency</label>
-              <select
-                className="input w-full"
-                value={rules.frequency}
-                onChange={e =>
-                  setRules({ ...rules, frequency: e.target.value })
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={rules.notifyEmail}
+                onChange={(e) =>
+                  setRules({
+                    ...rules,
+                    notifyEmail: e.target.checked,
+                  })
                 }
-              >
-                <option value="once">Once per low stock</option>
-                <option value="daily">Daily reminder</option>
-                <option value="weekly">Weekly reminder</option>
-              </select>
-            </div>
-
-            {/* Validation / Info Message */}
-            {message && (
-              <p className="text-rose-500 text-sm font-medium">{message}</p>
-            )}
+              />
+              Email Notification
+            </label>
           </div>
+
+          {/* Frequency */}
+          <div>
+            <label className="text-sm font-medium block mb-1">
+              Alert Frequency
+            </label>
+            <select
+              className="input w-full"
+              value={rules.frequency}
+              onChange={(e) =>
+                setRules({
+                  ...rules,
+                  frequency: e.target.value,
+                })
+              }
+            >
+              <option value="once">Once</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+            </select>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p className="text-red-500 text-sm font-medium">{error}</p>
+          )}
         </Card>
       )}
 
-      {/* Save Button */}
+      {/* Save */}
       <div className="text-right">
         <button
           onClick={handleSave}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded shadow"
+          disabled={loading}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
         >
-          Save Rules
+          {loading ? "Saving..." : "Save Rules"}
         </button>
       </div>
     </div>

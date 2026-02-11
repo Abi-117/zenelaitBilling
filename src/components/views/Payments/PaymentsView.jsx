@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import PaymentsReceivedView from './received/PaymentsReceivedView';
 import PaymentLinksView from './links/PaymentLinksView';
-import BankReconciliationView from './bank/BankReconciliationView';
+
+//ort BankReconciliationView from './bank/BankReconciliationView';
+import PaymentLinkCreate from './links/PaymentLinkCreate';
 
 const PaymentsView = () => {
   const [tab, setTab] = useState('received');
@@ -18,8 +20,10 @@ const PaymentsView = () => {
       <div className="flex gap-4 border-b">
         {[
           { id: 'received', label: 'Payments Received' },
+          { id: 'create-link', label: 'Create Payment Link'},
           { id: 'links', label: 'Payment Links' },
-          { id: 'bank', label: 'Bank Reconciliation' }
+         ,
+         // id: 'bank', label: 'Bank Reconciliation' }
         ].map(t => (
           <button
             key={t.id}
@@ -36,8 +40,9 @@ const PaymentsView = () => {
       </div>
 
       {tab === 'received' && <PaymentsReceivedView />}
+      {tab === 'create-link' && <PaymentLinkCreate />}
       {tab === 'links' && <PaymentLinksView />}
-      {tab === 'bank' && <BankReconciliationView />}
+    {/* /{tab === 'bank' && <BankReconciliationView />} */}
     </div>
   );
 };

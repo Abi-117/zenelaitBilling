@@ -1,222 +1,225 @@
-import { useState } from 'react';
-import { Plus, RotateCcw, FileText } from 'lucide-react';
+import { useEffect, useState } from "react";
+import {
+  fetchPurchaseBills,
+  createPurchaseReturn,
+  fetchPurchaseReturns,
+} from "../../../services/api";
 
-const PurchaseReturnsView = () => {
-  const [returns, setReturns] = useState([
-    {
-      id: 'PR-1001',
-      supplier: 'ABC Suppliers',
-      billNo: 'PB-9001',
-      date: '2026-01-10',
-      reason: 'Damaged goods',
-      status: 'Credited',
-      total: 2500,
-    },
-    {
-      id: 'PR-1002',
-      supplier: 'Metro Steels',
-      billNo: 'PB-9003',
-      date: '2026-01-14',
-      reason: 'Excess quantity',
-      status: 'Draft',
-      total: 18500,
-    },
-    {
-      id: 'PR-1003',
-      supplier: 'OfficeMart',
-      billNo: 'PB-9006',
-      date: '2026-01-18',
-      reason: 'Wrong item delivered',
-      status: 'Credited',
-      total: 6200,
-    },
-    {
-      id: 'PR-1004',
-      supplier: 'TechZone Pvt Ltd',
-      billNo: 'PB-9010',
-      date: '2026-01-22',
-      reason: 'Quality issue',
-      status: 'Draft',
-      total: 14500,
-    },
-  ]);
+export default function PurchaseReturnsView() {
+  const [purchaseBills, setPurchaseBills] = useState([]);
+  const [returns, setReturns] = useState([]);
+  const [selectedBill, setSelectedBill] = useState("");
+  const [billDate, setBillDate] = useState("");
+  const [items, setItems] = useState([{ name: "", qty: 1, rate: 0 }]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [form, setForm] = useState({
-    supplier: '',
-    billNo: '',
-    reason: '',
-    total: '',
-  });
+  /* ================= FETCH DATA ================= */
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const bills = await fetchPurchaseBills();
+      const returnsData = await fetchPurchaseReturns();
 
-  const createReturn = () => {
-    if (!form.supplier || !form.total) {
-      alert('Please fill all required fields');
-      return;
+      setPurchaseBills(bills || []);
+      setReturns(returnsData || []);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load data");
+    } finally {
+      setLoading(false);
     }
-
-    setReturns(prev => [
-      ...prev,
-      {
-        id: `PR-${Date.now()}`,
-        supplier: form.supplier,
-        billNo: form.billNo || '-',
-        date: new Date().toISOString().slice(0, 10),
-        reason: form.reason,
-        total: Number(form.total),
-        status: 'Draft',
-      },
-    ]);
-
-    setModalOpen(false);
-    setForm({ supplier: '', billNo: '', reason: '', total: '' });
   };
 
-  const convertToCredit = (id) => {
-    setReturns(prev =>
-      prev.map(r =>
-        r.id === id ? { ...r, status: 'Credited' } : r
-      )
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  /* ================= BILL SELECT ================= */
+  const handleBillSelect = (billId) => {
+    setSelectedBill(billId);
+
+    const bill = purchaseBills.find((b) => b._id === billId);
+    if (!bill) return;
+
+    setBillDate(
+      bill.billDate ? new Date(bill.billDate).toLocaleDateString() : ""
+    );
+
+    setItems(
+      bill.items?.map((i) => ({
+        name: i.name,
+        qty: i.qty,
+        rate: i.rate,
+      })) || [{ name: "", qty: 1, rate: 0 }]
     );
   };
 
-  return (
-    <div className="space-y-6 p-6">
+  /* ================= ITEMS ================= */
+  const updateItem = (i, key, value) => {
+    const copy = [...items];
+    copy[i][key] = key === "name" ? value : Number(value);
+    setItems(copy);
+  };
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold">Purchase Returns</h2>
-          <p className="text-sm text-slate-500">
-            Manage supplier returns & credit notes
-          </p>
+  const addItem = () =>
+    setItems([...items, { name: "", qty: 1, rate: 0 }]);
+
+  const removeItem = (i) =>
+    setItems(items.filter((_, index) => index !== i));
+
+  const total = items.reduce(
+    (sum, i) => sum + i.qty * i.rate,
+    0
+  );
+
+  /* ================= DUPLICATE CHECK ================= */
+  const isBillAlreadyReturned = returns.some(
+    (r) => r.purchaseBill?._id === selectedBill
+  );
+
+  const isSaveEnabled =
+    selectedBill &&
+    items.every((i) => i.name && i.qty > 0 && i.rate > 0) &&
+    !isBillAlreadyReturned;
+
+  /* ================= SAVE ================= */
+  const submitReturn = async () => {
+    if (!isSaveEnabled || saving) return;
+
+    try {
+      setSaving(true);
+
+      const bill = purchaseBills.find((b) => b._id === selectedBill);
+
+      const payload = {
+        purchaseBill: selectedBill,
+        supplier: bill?.supplier?._id,
+        supplierName: bill?.supplier?.name,
+        items,
+        total,
+        grandTotal: total,
+      };
+
+      await createPurchaseReturn(payload);
+
+      await loadData(); // 🔥 IMPORTANT
+
+      setSelectedBill("");
+      setBillDate("");
+      setItems([{ name: "", qty: 1, rate: 0 }]);
+
+      alert("Purchase return saved!");
+    } catch (err) {
+      alert(err.response?.data?.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) return <div className="p-6">Loading...</div>;
+
+  return (
+    <div className="p-6 space-y-6">
+      <h2 className="text-2xl font-semibold">Purchase Returns</h2>
+
+      {/* CREATE */}
+      <div className="bg-white p-4 shadow rounded space-y-3">
+        <select
+          className="border p-2 w-full"
+          value={selectedBill}
+          onChange={(e) => handleBillSelect(e.target.value)}
+        >
+          <option value="">Select Bill</option>
+          {purchaseBills.map((b) => (
+            <option key={b._id} value={b._id}>
+              {b.billNo}
+            </option>
+          ))}
+        </select>
+
+        {items.map((item, i) => (
+          <div key={i} className="flex gap-2">
+            <input
+              className="border p-2 flex-1"
+              value={item.name}
+              placeholder="Item"
+              onChange={(e) =>
+                updateItem(i, "name", e.target.value)
+              }
+            />
+            <input
+              type="number"
+              className="border p-2 w-20"
+              value={item.qty}
+              onChange={(e) =>
+                updateItem(i, "qty", e.target.value)
+              }
+            />
+            <input
+              type="number"
+              className="border p-2 w-24"
+              value={item.rate}
+              onChange={(e) =>
+                updateItem(i, "rate", e.target.value)
+              }
+            />
+            <button
+              onClick={() => removeItem(i)}
+              className="text-red-600"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        <div className="flex justify-between">
+          <button onClick={addItem} className="text-blue-600">
+            + Add Item
+          </button>
+          <strong>Total: ₹{total}</strong>
         </div>
 
         <button
-          onClick={() => setModalOpen(true)}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg"
+          disabled={!isSaveEnabled || saving}
+          onClick={submitReturn}
+          className="bg-green-600 text-white px-4 py-2 rounded disabled:bg-gray-400"
         >
-          <Plus size={16} /> New Return
+          {isBillAlreadyReturned
+            ? "Already Returned"
+            : saving
+            ? "Saving..."
+            : "Save Return"}
         </button>
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white rounded-xl shadow overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-slate-600">
-            <tr>
-              <th className="p-3 text-left">Return No</th>
-              <th className="p-3">Supplier</th>
-              <th className="p-3">Bill No</th>
-              <th className="p-3">Date</th>
-              <th className="p-3">Reason</th>
-              <th className="p-3 text-right">Total</th>
-              <th className="p-3 text-center">Status</th>
-              <th className="p-3 text-right">Action</th>
+      {/* LIST */}
+      <div className="bg-white p-4 shadow rounded">
+        <table className="w-full">
+          <thead>
+            <tr className="bg-slate-100">
+              <th>Return No</th>
+              <th>Supplier</th>
+              <th>Bill</th>
+              <th>Date</th>
+              <th>Total</th>
             </tr>
           </thead>
-
           <tbody>
-            {returns.map(r => (
-              <tr key={r.id} className="border-b hover:bg-slate-50">
-                <td className="p-3 font-medium">{r.id}</td>
-                <td className="p-3 text-center">{r.supplier}</td>
-                <td className="p-3 text-center">{r.billNo}</td>
-                <td className="p-3 text-center">{r.date}</td>
-                <td className="p-3 text-center">{r.reason}</td>
-                <td className="p-3 text-right font-semibold">
-                  ₹{r.total}
+            {returns.map((r) => (
+              <tr key={r._id} className="border-b">
+                <td>{r.returnNo}</td>
+                <td>{r.supplierName}</td>
+                <td>{r.purchaseBill?.billNo}</td>
+                <td>
+                  {new Date(r.createdAt).toLocaleDateString()}
                 </td>
-                <td className="p-3 text-center">
-                  <span
-                    className={`px-3 py-1 rounded-full text-xs font-bold
-                      ${
-                        r.status === 'Draft'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-emerald-100 text-emerald-700'
-                      }`}
-                  >
-                    {r.status}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  {r.status === 'Draft' && (
-                    <button
-                      onClick={() => convertToCredit(r.id)}
-                      className="flex items-center gap-1 text-blue-600 text-sm"
-                    >
-                      <RotateCcw size={14} /> Convert
-                    </button>
-                  )}
-                  {r.status === 'Credited' && (
-                    <span className="flex justify-end items-center gap-1 text-emerald-600 text-sm font-semibold">
-                      <FileText size={14} /> Credit Note
-                    </span>
-                  )}
-                </td>
+                <td>₹{r.total}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-
-      {/* MODAL */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-lg font-bold mb-4">New Purchase Return</h3>
-
-            <div className="space-y-3">
-              <input
-                placeholder="Supplier Name"
-                className="w-full border px-3 py-2 rounded"
-                value={form.supplier}
-                onChange={e => setForm({ ...form, supplier: e.target.value })}
-              />
-
-              <input
-                placeholder="Purchase Bill No (optional)"
-                className="w-full border px-3 py-2 rounded"
-                value={form.billNo}
-                onChange={e => setForm({ ...form, billNo: e.target.value })}
-              />
-
-              <input
-                placeholder="Return Reason"
-                className="w-full border px-3 py-2 rounded"
-                value={form.reason}
-                onChange={e => setForm({ ...form, reason: e.target.value })}
-              />
-
-              <input
-                type="number"
-                placeholder="Total Amount"
-                className="w-full border px-3 py-2 rounded"
-                value={form.total}
-                onChange={e => setForm({ ...form, total: e.target.value })}
-              />
-
-              <div className="flex justify-end gap-2 pt-4">
-                <button
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 bg-gray-200 rounded"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={createReturn}
-                  className="px-4 py-2 bg-blue-600 text-white rounded"
-                >
-                  Create Return
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
-};
-
-export default PurchaseReturnsView;
+}

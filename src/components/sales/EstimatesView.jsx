@@ -1,135 +1,244 @@
-/* ---------------- UPGRADES ---------------- */
-import { useState } from 'react';
-import { Plus, FileText, Edit, Trash2, Mail } from 'lucide-react'; // Added Mail icon
-import Card from '../ui/Card';
-import Modal from '../ui/Modal';
-import InvoiceEditorPanel from '../sales/InvoiceEditorView';
-import ProjectsView from '../../components/views/TimeTracking/ProjectsView';
-import SendInvoicePage from '../sales/SendInvoicePage'; // <-- Import SendInvoicePage
+"use client";
 
-const EstimatesView = () => {
-  const [estimates, setEstimates] = useState([
-    { id: 'EST-9110', customer: 'Anissa', amount: 373, status: 'Expired', date: '2025-12-05', items: [] },
-    { id: 'EST-99439', customer: 'Theresia', amount: 403, status: 'Expired', date: '2026-01-02', items: [] },
-    { id: 'EST-94964', customer: 'Darrin', amount: 467, status: 'Invoiced', date: '2025-12-03', items: [] },
-    { id: 'EST-60533', customer: 'Kennedi', amount: 521, status: 'Invoiced', date: '2025-05-13', items: [] },
-    { id: 'EST-12345', customer: 'Liam', amount: 320, status: 'Pending', date: '2026-01-10', items: [] },
-    { id: 'EST-12346', customer: 'Olivia', amount: 275, status: 'Expired', date: '2025-11-28', items: [] },
-    { id: 'EST-12347', customer: 'Noah', amount: 610, status: 'Invoiced', date: '2025-12-15', items: [] },
-    { id: 'EST-12348', customer: 'Emma', amount: 455, status: 'Pending', date: '2026-01-05', items: [] },
-    { id: 'EST-12349', customer: 'Ava', amount: 390, status: 'Expired', date: '2025-12-20', items: [] },
-    { id: 'EST-12350', customer: 'William', amount: 500, status: 'Invoiced', date: '2025-12-30', items: [] },
-    { id: 'EST-12351', customer: 'Sophia', amount: 420, status: 'Pending', date: '2026-01-08', items: [] },
-    { id: 'EST-12352', customer: 'James', amount: 350, status: 'Expired', date: '2025-12-12', items: [] },
-    { id: 'EST-12353', customer: 'Isabella', amount: 480, status: 'Invoiced', date: '2025-12-25', items: [] },
-    { id: 'EST-12354', customer: 'Benjamin', amount: 540, status: 'Pending', date: '2026-01-03', items: [] },
-    { id: 'EST-12355', customer: 'Mia', amount: 395, status: 'Expired', date: '2025-12-18', items: [] }
-  ]);
+import { useState, useEffect } from "react";
+import { Plus, FileText, Edit, Trash2, Mail } from "lucide-react";
+import { v4 as uuidv4 } from "uuid";
 
+import Card from "../ui/Card";
+import Modal from "../ui/Modal";
+import NewEstimateForm from "../sales/NewEstimateForm";
+import SendEstimatePage from "../sales/SendEstimatePage";
+import InvoiceEditorView from "../sales/InvoiceEditorView";
+
+const API_ESTIMATES = "http://localhost:5000/api/estimates";
+const API_CUSTOMERS = "http://localhost:5000/api/customers";
+
+export default function EstimatesView() {
+  const [estimates, setEstimates] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [selectedEstimate, setSelectedEstimate] = useState(null);
-  const [creatingInvoice, setCreatingInvoice] = useState(null);
-  const [creatingProject, setCreatingProject] = useState(null);
+
   const [showNewEstimateModal, setShowNewEstimateModal] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState(null);
-  
-  // ---------------- SEND INVOICE MODAL ----------------
-  const [sendInvoiceModal, setSendInvoiceModal] = useState(false);
-  const [sendingInvoice, setSendingInvoice] = useState(null);
+
+  const [sendEstimateModal, setSendEstimateModal] = useState(false);
+  const [sendingEstimate, setSendingEstimate] = useState(null);
+
+  const [creatingInvoice, setCreatingInvoice] = useState(null);
+
+  const token =
+    typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  /* ---------------- AUTH CHECK ---------------- */
+  useEffect(() => {
+    if (!token) {
+      alert("Please login again");
+      window.location.href = "/login";
+    }
+  }, [token]);
+
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    if (!token) return;
+
+    const fetchData = async () => {
+      try {
+        const custRes = await fetch(API_CUSTOMERS, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const custData = await custRes.json();
+        setCustomers(Array.isArray(custData) ? custData : []);
+
+        const estRes = await fetch(API_ESTIMATES, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const estData = await estRes.json();
+        setEstimates(Array.isArray(estData) ? estData : []);
+      } catch (err) {
+        alert("Session expired");
+        window.location.href = "/login";
+      }
+    };
+
+    fetchData();
+  }, [token]);
+
+  const formatDate = (iso) =>
+    iso ? new Date(iso).toISOString().split("T")[0] : "";
+
+  /* ---------------- DELETE ESTIMATE ---------------- */
+  const handleDeleteEstimate = async (e, estimateId) => {
+    e.stopPropagation();
+
+    const confirm = window.confirm(
+      "Are you sure you want to delete this estimate?"
+    );
+    if (!confirm) return;
+
+    try {
+      const res = await fetch(`${API_ESTIMATES}/${estimateId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Delete failed");
+      }
+
+      setEstimates((prev) => prev.filter((e) => e._id !== estimateId));
+      if (selectedEstimate?._id === estimateId) {
+        setSelectedEstimate(null);
+      }
+
+      alert("Estimate deleted successfully");
+    } catch (err) {
+      alert("Delete failed: " + err.message);
+    }
+  };
+
+  /* ---------------- SAVE NEW ESTIMATE ---------------- */
+  const handleSaveNewEstimate = async (payload) => {
+    try {
+      const res = await fetch(API_ESTIMATES, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Save failed");
+      }
+
+      const saved = await res.json();
+      setEstimates((prev) => [...prev, saved]);
+
+      setShowNewEstimateModal(false);
+      setEditingEstimate(null);
+    } catch (err) {
+      alert("Save failed: " + err.message);
+    }
+  };
+
+  /* ---------------- SAVE EDITED ESTIMATE ---------------- */
+  const handleSaveEditedEstimate = async (payload) => {
+    try {
+      const res = await fetch(`${API_ESTIMATES}/${editingEstimate._id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Update failed");
+      }
+
+      const updated = await res.json();
+      setEstimates((prev) =>
+        prev.map((e) => (e._id === updated._id ? updated : e))
+      );
+
+      setShowNewEstimateModal(false);
+      setEditingEstimate(null);
+    } catch (err) {
+      alert("Update failed: " + err.message);
+    }
+  };
 
   /* ---------------- CONVERT TO INVOICE ---------------- */
-  const handleConvertInvoice = (estimate) => {
-    setSelectedEstimate(null);
-    setCreatingProject(null);
-    setCreatingInvoice({
-      id: `INV-${Date.now()}`,
-      customerName: estimate.customer,
-      date: new Date().toISOString().split('T')[0],
-      items: estimate.items || [],
-      gstRate: 18,
-      gstin: '',
-      subtotal: 0,
-      tax: 0,
-      total: estimate.amount,
-    });
+  const handleConvertInvoice = async (estimate) => {
+    try {
+      const res = await fetch(`${API_ESTIMATES}/${estimate._id}/convert`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Convert failed");
+      }
+
+      const { invoice } = await res.json();
+
+      // open invoice editor
+      setCreatingInvoice({
+        ...invoice,
+        items: invoice.items.map((i) => ({ ...i, id: uuidv4() })),
+        date: invoice.date?.split("T")[0],
+      });
+
+      // auto update estimate status
+      setEstimates((prev) =>
+        prev.map((e) =>
+          e._id === estimate._id ? { ...e, status: "Invoiced" } : e
+        )
+      );
+
+      setSelectedEstimate((prev) =>
+        prev?._id === estimate._id ? { ...prev, status: "Invoiced" } : prev
+      );
+
+      alert("Invoice created successfully");
+    } catch (err) {
+      alert(err.message || "Invoice conversion failed");
+    }
   };
 
-  /* ---------------- CREATE PROJECT ---------------- */
-  const handleCreateProject = (estimate) => {
-    setSelectedEstimate(null);
-    setCreatingInvoice(null);
-    setCreatingProject({
-      name: `Project for ${estimate.customer}`,
-      client: estimate.customer,
-      rate: estimate.amount,
-    });
-  };
-
-  /* ---------------- ADD OR EDIT ESTIMATE ---------------- */
-  const handleSaveNewEstimate = (newEstimate) => {
-    setEstimates(prev => [{ id: `EST-${Date.now()}`, ...newEstimate }, ...prev]);
-    setShowNewEstimateModal(false);
-  };
-
-  const handleSaveEditedEstimate = (updated) => {
-    setEstimates(prev => prev.map(e => e.id === updated.id ? updated : e));
-    setEditingEstimate(null);
-  };
-
-  /* ---------------- SEND INVOICE ---------------- */
-  const handleOpenSendInvoice = (estimate) => {
-    setSendingInvoice(estimate);
-    setSendInvoiceModal(true);
-  };
-
-  const handleSendInvoice = ({ invoiceId, status, ...rest }) => {
-    // Update the invoice status in estimates array
-    setEstimates(prev =>
-      prev.map(e =>
-        e.id === invoiceId
-          ? { ...e, status: status || e.status }
-          : e
+  /* ---------------- SEND ESTIMATE ---------------- */
+  const handleSendEstimate = ({ estimateId, status }) => {
+    setEstimates((prev) =>
+      prev.map((e) =>
+        e._id === estimateId ? { ...e, status: status || "Sent" } : e
       )
     );
-    setSendInvoiceModal(false);
-    setSendingInvoice(null);
-    alert('Invoice sent successfully!');
+    setSendEstimateModal(false);
+    setSendingEstimate(null);
+    alert("Estimate sent successfully");
   };
 
-  /* ---------------- CONDITIONAL SCREENS ---------------- */
-  if (creatingInvoice) {
-    return (
-      <InvoiceEditorPanel
-        invoice={creatingInvoice}
-        onChange={setCreatingInvoice}
-        onBack={() => setCreatingInvoice(null)}
-        onSave={() => {
-          alert('Invoice created successfully');
-          setCreatingInvoice(null);
-        }}
-      />
-    );
-  }
+  /* ---------------- SAVE INVOICE ---------------- */
+  const saveInvoice = async (invoice) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/invoices", {
+        method: invoice._id ? "PUT" : "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(invoice),
+      });
 
-  if (creatingProject) {
-    return (
-      <ProjectsView
-        initialProject={creatingProject}
-        onBack={() => setCreatingProject(null)}
-      />
-    );
-  }
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Invoice save failed");
+      }
 
-  /* ---------------- MAIN VIEW ---------------- */
+      const saved = await res.json();
+      alert("Invoice saved successfully");
+      setCreatingInvoice(null);
+    } catch (err) {
+      alert("Invoice save failed: " + err.message);
+    }
+  };
+
+  /* ---------------- UI ---------------- */
   return (
     <div className="flex gap-6 p-6">
-
-      {/* LEFT TABLE */}
+      {/* LEFT PANEL */}
       <div className="w-2/3 space-y-4">
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between">
           <h2 className="text-2xl font-bold">Estimates</h2>
           <button
             onClick={() => setShowNewEstimateModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
+            className="bg-blue-600 text-white px-4 py-2 rounded flex gap-2"
           >
             <Plus size={16} /> New Estimate
           </button>
@@ -140,58 +249,50 @@ const EstimatesView = () => {
             <thead className="bg-slate-50">
               <tr>
                 <th className="p-3 text-left">ID</th>
-                <th className="p-3 text-left">Customer</th>
+                <th className="p-3">Customer</th>
                 <th className="p-3 text-right">Amount</th>
-                <th className="p-3 text-left">Date</th>
-                <th className="p-3 text-center">Status</th>
+                <th className="p-3">Date</th>
+                <th className="p-3">Status</th>
                 <th className="p-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {estimates.map(est => (
+              {estimates.map((est) => (
                 <tr
-                  key={est.id}
-                  className={`border-t cursor-pointer hover:bg-slate-50 ${selectedEstimate?.id === est.id ? 'bg-blue-50' : ''}`}
+                  key={est._id}
                   onClick={() => setSelectedEstimate(est)}
+                  className="border-t hover:bg-slate-50 cursor-pointer"
                 >
-                  <td className="p-3 flex items-center gap-2">
-                    <FileText size={14} /> {est.id}
+                  <td className="p-3 flex gap-2">
+                    <FileText size={14} /> {est.estimateNo}
                   </td>
-                  <td className="p-3">{est.customer}</td>
-                  <td className="p-3 text-right font-bold">₹{est.amount}</td>
-                  <td className="p-3">{est.date}</td>
-                  <td className={`p-3 text-center ${est.status === 'Expired' ? 'text-red-600 font-semibold' : ''}`}>
-                    {est.status}
-                  </td>
-                  <td className="p-3 text-right flex justify-end gap-2">
-                    <button
+                  <td className="p-3">{est.customerName}</td>
+                  <td className="p-3 text-right font-bold">₹{est.total}</td>
+                  <td className="p-3">{formatDate(est.date)}</td>
+                  <td className="p-3">{est.status}</td>
+                  <td className="p-3 flex justify-end gap-3">
+                    <Mail
+                      size={14}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleOpenSendInvoice(est); // <-- Send Invoice
+                        setSendingEstimate(est);
+                        setSendEstimateModal(true);
                       }}
-                      className="text-green-600"
-                      title="Send Invoice"
-                    >
-                      <Mail size={14} />
-                    </button>
-                    <button
+                    />
+                    <Edit
+                      size={14}
                       onClick={(e) => {
                         e.stopPropagation();
+                        if (est.status === "Sent" || est.status === "Invoiced")
+                          return;
                         setEditingEstimate(est);
                       }}
-                      className="text-blue-600"
-                    >
-                      <Edit size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEstimates(estimates.filter(x => x.id !== est.id));
-                      }}
-                      className="text-rose-500"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    />
+                    <Trash2
+                      size={14}
+                      className="text-red-600"
+                      onClick={(e) => handleDeleteEstimate(e, est._id)}
+                    />
                   </td>
                 </tr>
               ))}
@@ -200,124 +301,59 @@ const EstimatesView = () => {
         </Card>
       </div>
 
-      {/* RIGHT DETAIL PANEL */}
+      {/* RIGHT PANEL */}
       {selectedEstimate && (
-        <div className="w-1/3 bg-white rounded-xl shadow p-4 space-y-4">
-          <div className="flex justify-between items-center">
-            <h3 className="font-bold">{selectedEstimate.id}</h3>
-            <button onClick={() => setSelectedEstimate(null)}>Close</button>
-          </div>
-
-          <p className="text-slate-600">{selectedEstimate.customer}</p>
-          <p className="font-bold text-lg">₹{selectedEstimate.amount}</p>
-
-          <div className="flex gap-2 pt-4">
-            <button
-              onClick={() => handleConvertInvoice(selectedEstimate)}
-              className="bg-green-600 text-white px-4 py-2 rounded"
-            >
-              Convert to Invoice
-            </button>
-            <button
-              onClick={() => handleCreateProject(selectedEstimate)}
-              className="bg-gray-200 px-4 py-2 rounded"
-            >
-              Create Project
-            </button>
-          </div>
+        <div className="w-1/3 bg-white p-4 rounded shadow">
+          <h3 className="font-bold">{selectedEstimate.estimateNo}</h3>
+          <p>{selectedEstimate.customerName}</p>
+          <p className="font-bold text-lg">₹{selectedEstimate.total}</p>
+          <button
+            onClick={() => handleConvertInvoice(selectedEstimate)}
+            className="bg-green-600 text-white px-4 py-2 rounded mt-3"
+            disabled={selectedEstimate.status === "Invoiced"}
+          >
+            Convert to Invoice
+          </button>
         </div>
       )}
 
-      {/* ---------------- NEW ESTIMATE MODAL ---------------- */}
+      {/* MODALS */}
       <Modal
-        isOpen={showNewEstimateModal}
-        onClose={() => setShowNewEstimateModal(false)}
-        title="New Estimate"
+        isOpen={showNewEstimateModal || !!editingEstimate}
+        onClose={() => {
+          setShowNewEstimateModal(false);
+          setEditingEstimate(null);
+        }}
+        title="Estimate"
       >
         <NewEstimateForm
-          onCancel={() => setShowNewEstimateModal(false)}
-          onSave={handleSaveNewEstimate}
+          customers={customers}
+          initial={editingEstimate}
+          onSave={editingEstimate ? handleSaveEditedEstimate : handleSaveNewEstimate}
+          onCancel={() => {
+            setShowNewEstimateModal(false);
+            setEditingEstimate(null);
+          }}
         />
       </Modal>
 
-      {/* ---------------- EDIT ESTIMATE MODAL ---------------- */}
-      <Modal
-        isOpen={!!editingEstimate}
-        onClose={() => setEditingEstimate(null)}
-        title={`Edit ${editingEstimate?.id}`}
-      >
-        {editingEstimate && (
-          <NewEstimateForm
-            initial={editingEstimate}
-            onCancel={() => setEditingEstimate(null)}
-            onSave={handleSaveEditedEstimate}
-          />
-        )}
-      </Modal>
+      {sendEstimateModal && sendingEstimate && (
+        <SendEstimatePage
+          estimate={sendingEstimate}
+          onSend={handleSendEstimate}
+          onBack={() => setSendEstimateModal(false)}
+        />
+      )}
 
-      {/* ---------------- SEND INVOICE MODAL ---------------- */}
-      {sendInvoiceModal && sendingInvoice && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-start p-6 z-50 overflow-auto">
-          <SendInvoicePage
-            invoice={sendingInvoice}
-            onSendInvoice={handleSendInvoice}
-            onBack={() => setSendInvoiceModal(false)}
-          />
-        </div>
+      {creatingInvoice && (
+        <InvoiceEditorView
+          invoice={creatingInvoice}
+          customers={customers}
+          onChange={setCreatingInvoice}
+          onBack={() => setCreatingInvoice(null)}
+          onSave={saveInvoice}
+        />
       )}
     </div>
   );
-};
-
-export default EstimatesView;
-
-/* ---------------- NEW/EDIT ESTIMATE FORM ---------------- */
-const NewEstimateForm = ({ onSave, onCancel, initial }) => {
-  const [form, setForm] = useState(initial || {
-    customer: '',
-    amount: 0,
-    status: 'Draft',
-    date: new Date().toISOString().split('T')[0],
-    items: [],
-  });
-
-  return (
-    <div className="space-y-3">
-      <input
-        type="text"
-        placeholder="Customer Name"
-        className="w-full border p-2 rounded"
-        value={form.customer}
-        onChange={e => setForm({ ...form, customer: e.target.value })}
-      />
-      <input
-        type="number"
-        placeholder="Amount"
-        className="w-full border p-2 rounded"
-        value={form.amount}
-        onChange={e => setForm({ ...form, amount: Number(e.target.value) })}
-      />
-      <input
-        type="date"
-        className="w-full border p-2 rounded"
-        value={form.date}
-        onChange={e => setForm({ ...form, date: e.target.value })}
-      />
-
-      <div className="flex justify-end gap-2 mt-2">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 rounded border border-gray-300 hover:bg-gray-100"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={() => onSave(form)}
-          className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
-        >
-          Save
-        </button>
-      </div>
-    </div>
-  );
-};
+}

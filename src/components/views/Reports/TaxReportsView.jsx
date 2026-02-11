@@ -1,48 +1,65 @@
 // TaxReportsView.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import EventDetailsModal from "./EventDetailsModal";
-
-const dummyTaxData = [
-  {
-    customer: "Acme Corp",
-    taxable: 100000,
-    cgst: 9000,
-    sgst: 9000,
-    igst: 0,
-    totalGST: 18000,
-    invoices: [
-      { ref: "INV-001", amount: 100000, gstRate: 18, status: "Pending", time: "2026-01-10", customer: "Acme Corp" },
-    ],
-  },
-  {
-    customer: "Globex",
-    taxable: 50000,
-    cgst: 4500,
-    sgst: 4500,
-    igst: 0,
-    totalGST: 9000,
-    invoices: [
-      { ref: "INV-002", amount: 50000, gstRate: 18, status: "Paid", time: "2026-01-05", customer: "Globex" },
-    ],
-  },
-  {
-    customer: "Beta Ltd",
-    taxable: 80000,
-    cgst: 7200,
-    sgst: 7200,
-    igst: 0,
-    totalGST: 14400,
-    invoices: [
-      { ref: "INV-003", amount: 80000, gstRate: 18, status: "Pending", time: "2026-01-12", customer: "Beta Ltd" },
-    ],
-  },
-];
+import { fetchInvoices } from "../../../services/invoiceApi";
 
 const TaxReportsView = () => {
+  const [taxData, setTaxData] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Totals
-  const totals = dummyTaxData.reduce(
+  const token = localStorage.getItem("token");
+
+  // Load invoices and compute tax summary per customer
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const invoices = await fetchInvoices(token);
+
+      const customerMap = {};
+
+      invoices.forEach((inv) => {
+        const cust = inv.customerName || "Unknown";
+        if (!customerMap[cust]) {
+          customerMap[cust] = {
+            customer: cust,
+            taxable: 0,
+            cgst: 0,
+            sgst: 0,
+            igst: 0,
+            totalGST: 0,
+            invoices: [],
+          };
+        }
+
+        const gstRate = inv.gstRate || 0;
+        const cgst = gstRate / 2 / 100 * inv.total || 0;
+        const sgst = gstRate / 2 / 100 * inv.total || 0;
+        const igst = gstRate === 18 ? 0 : gstRate / 100 * inv.total || 0; // example logic
+
+        customerMap[cust].taxable += inv.total || 0;
+        customerMap[cust].cgst += cgst;
+        customerMap[cust].sgst += sgst;
+        customerMap[cust].igst += igst;
+        customerMap[cust].totalGST += cgst + sgst + igst;
+
+        customerMap[cust].invoices.push(inv);
+      });
+
+      setTaxData(Object.values(customerMap));
+    } catch (err) {
+      console.error("Failed to load tax data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) loadData();
+  }, [token]);
+
+  // Totals across all customers
+  const totals = taxData.reduce(
     (acc, cur) => {
       acc.taxable += cur.taxable;
       acc.cgst += cur.cgst;
@@ -60,11 +77,11 @@ const TaxReportsView = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl shadow p-6">
           <p className="text-sm text-slate-500">GST Collected</p>
-          <p className="text-2xl font-bold mt-2">₹{totals.totalGST}</p>
+          <p className="text-2xl font-bold mt-2">₹{totals.totalGST.toLocaleString()}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-6">
           <p className="text-sm text-slate-500">GST Payable</p>
-          <p className="text-2xl font-bold mt-2">₹{totals.totalGST}</p>
+          <p className="text-2xl font-bold mt-2">₹{totals.totalGST.toLocaleString()}</p>
         </div>
       </div>
 
@@ -80,66 +97,71 @@ const TaxReportsView = () => {
           </button>
         </div>
 
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="text-left text-slate-500 border-b">
-              <th className="py-2 px-3">Customer</th>
-              <th className="py-2 px-3">Taxable Amount</th>
-              <th className="py-2 px-3">CGST</th>
-              <th className="py-2 px-3">SGST</th>
-              <th className="py-2 px-3">IGST</th>
-              <th className="py-2 px-3">Total GST</th>
-              <th className="py-2 px-3">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dummyTaxData.map((row, i) => (
-              <tr key={i} className="border-b hover:bg-slate-50">
-                <td className="py-2 px-3 font-medium">{row.customer}</td>
-                <td className="py-2 px-3">₹{row.taxable}</td>
-                <td className="py-2 px-3">₹{row.cgst}</td>
-                <td className="py-2 px-3">₹{row.sgst}</td>
-                <td className="py-2 px-3">₹{row.igst}</td>
-                <td className="py-2 px-3 font-bold">₹{row.totalGST}</td>
-                <td className="py-2 px-3 flex gap-2">
-                  <button
-                    onClick={() => setSelectedInvoice(row.invoices[0])}
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    View Invoice
-                  </button>
-                  <button
-                    onClick={() => alert(`Reminder sent to ${row.customer}`)}
-                    className="text-green-600 hover:underline text-sm"
-                  >
-                    Send Reminder
-                  </button>
-                </td>
+        {loading ? (
+          <p className="text-center text-sm text-slate-400">Loading...</p>
+        ) : (
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="text-left text-slate-500 border-b">
+                <th className="py-2 px-3">Customer</th>
+                <th className="py-2 px-3">Taxable Amount</th>
+                <th className="py-2 px-3">CGST</th>
+                <th className="py-2 px-3">SGST</th>
+                <th className="py-2 px-3">IGST</th>
+                <th className="py-2 px-3">Total GST</th>
+                <th className="py-2 px-3">Actions</th>
               </tr>
-            ))}
+            </thead>
+            <tbody>
+              {taxData.map((row, i) => (
+                <tr key={i} className="border-b hover:bg-slate-50">
+                  <td className="py-2 px-3 font-medium">{row.customer}</td>
+                  <td className="py-2 px-3">₹{row.taxable.toLocaleString()}</td>
+                  <td className="py-2 px-3">₹{row.cgst.toLocaleString()}</td>
+                  <td className="py-2 px-3">₹{row.sgst.toLocaleString()}</td>
+                  <td className="py-2 px-3">₹{row.igst.toLocaleString()}</td>
+                  <td className="py-2 px-3 font-bold">₹{row.totalGST.toLocaleString()}</td>
+                  <td className="py-2 px-3 flex gap-2">
+                    <button
+                      onClick={() => setSelectedInvoice(row.invoices[0])}
+                      className="text-blue-600 hover:underline text-sm"
+                    >
+                      View Invoice
+                    </button>
+                    <button
+                      onClick={() => alert(`Reminder sent to ${row.customer}`)}
+                      className="text-green-600 hover:underline text-sm"
+                    >
+                      Send Reminder
+                    </button>
+                  </td>
+                </tr>
+              ))}
 
-            {/* Totals Row */}
-            <tr className="border-t font-semibold bg-slate-50">
-              <td className="py-2 px-3">Total</td>
-              <td className="py-2 px-3">₹{totals.taxable}</td>
-              <td className="py-2 px-3">₹{totals.cgst}</td>
-              <td className="py-2 px-3">₹{totals.sgst}</td>
-              <td className="py-2 px-3">₹{totals.igst}</td>
-              <td className="py-2 px-3">₹{totals.totalGST}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
+              {/* Totals Row */}
+              <tr className="border-t font-semibold bg-slate-50">
+                <td className="py-2 px-3">Total</td>
+                <td className="py-2 px-3">₹{totals.taxable.toLocaleString()}</td>
+                <td className="py-2 px-3">₹{totals.cgst.toLocaleString()}</td>
+                <td className="py-2 px-3">₹{totals.sgst.toLocaleString()}</td>
+                <td className="py-2 px-3">₹{totals.igst.toLocaleString()}</td>
+                <td className="py-2 px-3">₹{totals.totalGST.toLocaleString()}</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Invoice Modal */}
       {selectedInvoice && (
         <EventDetailsModal
-          event={selectedInvoice}
+          invoice={selectedInvoice}
           onClose={() => setSelectedInvoice(null)}
           onMarkPaid={(id) => {
             alert(`Invoice ${id} marked as Paid`);
             setSelectedInvoice(null);
+            loadData(); // refresh after payment
           }}
         />
       )}

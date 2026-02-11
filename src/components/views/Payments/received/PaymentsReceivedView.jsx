@@ -1,123 +1,190 @@
-// PaymentsReceivedView.jsx
-import { useState } from 'react';
-import PaymentDetailsPanel from './PaymentDetailsPanel';
+"use client";
 
-const INITIAL_PAYMENTS = [
-  { id: 'PAY-9001', customer: 'Stark Industries', invoice: 'INV-5001', amount: 3200, method: 'UPI', date: '12 Jan 2026', status: 'Completed' },
-  { id: 'PAY-9002', customer: 'Wayne Enterprises', invoice: 'INV-5002', amount: 12500, method: 'Credit Card', date: '13 Jan 2026', status: 'Pending' },
-  { id: 'PAY-9003', customer: 'Oscorp', invoice: 'INV-5003', amount: 7800, method: 'Net Banking', date: '14 Jan 2026', status: 'Completed' },
-  { id: 'PAY-9004', customer: 'LexCorp', invoice: 'INV-5004', amount: 5400, method: 'UPI', date: '15 Jan 2026', status: 'Failed' },
-  { id: 'PAY-9005', customer: 'Daily Planet', invoice: 'INV-5005', amount: 9800, method: 'Cash', date: '16 Jan 2026', status: 'Completed' },
-];
+import { useEffect, useState } from "react";
+import axios from "axios";
+import Badge from "../../../ui/Badge";
+import Card from "../../../ui/Card";
+import Button from "../../../ui/button";
 
-const PaymentsReceivedView = () => {
-  const [payments, setPayments] = useState(INITIAL_PAYMENTS);
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+
+export default function PaymentsReceivedView() {
+  const [payments, setPayments] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("Pending");
 
-  const filteredPayments = payments.filter(p => {
-    const matchesStatus = filterStatus === 'All' || p.status === filterStatus;
-    const matchesSearch =
-      p.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.invoice.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  useEffect(() => {
+    fetchPayments();
+  }, []);
 
-  const handleRefund = (id) => {
-    const updated = payments.map(p =>
-      p.id === id ? { ...p, status: 'Refunded' } : p
-    );
-    setPayments(updated);
-    if (selected?.id === id) setSelected({ ...selected, status: 'Refunded' });
-    alert('Payment refunded successfully!');
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const res = await axios.get(`${API_BASE_URL}/payments`);
+      const data = res.data || [];
+
+      setPayments(data);
+
+      const pending = data.find(p => p.status === "Pending");
+      if (pending) setSelected(pending);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load payments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!selected) return;
+
+    if (!confirm("Are you sure you want to refund this payment?")) return;
+
+    try {
+      await axios.post(
+        `${API_BASE_URL}/payments/${selected._id}/refund`
+      );
+
+      alert("Refund successful");
+      fetchPayments();
+      setSelected(null);
+    } catch (err) {
+      console.error(err);
+      alert("Refund failed");
+    }
+  };
+
+  const filteredPayments =
+    filterStatus === "All"
+      ? payments
+      : payments.filter(p => p.status === filterStatus);
+
+  const getStatusColor = status => {
+    switch (status) {
+      case "Completed":
+        return "bg-green-600";
+      case "Pending":
+        return "bg-yellow-500";
+      case "Failed":
+        return "bg-red-600";
+      case "Refunded":
+        return "bg-purple-600";
+      default:
+        return "bg-gray-500";
+    }
   };
 
   return (
-    <div className="flex gap-4">
-      <div className="w-2/3 bg-white border rounded-xl p-4 space-y-4">
-        <div className="flex justify-between items-center gap-4 mb-2">
-          <input
-            type="text"
-            placeholder="Search by customer or invoice"
-            className="input w-1/2"
-            value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
-          />
-          <select
-            className="input w-1/4"
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-          >
-            <option value="All">All Status</option>
-            <option value="Completed">Completed</option>
-            <option value="Pending">Pending</option>
-            <option value="Failed">Failed</option>
-            <option value="Refunded">Refunded</option>
-          </select>
-        </div>
+    <div className="grid grid-cols-12 gap-6">
+      {/* LEFT LIST */}
+      <div className="col-span-5">
+        <Card>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-semibold">Payments Received</h2>
 
-        <table className="w-full text-sm border-t">
-          <thead className="bg-slate-50">
-            <tr>
-              <th className="p-3 text-left">Payment</th>
-              <th className="text-left">Customer</th>
-              <th className="text-left">Invoice</th>
-              <th className="text-right">Amount</th>
-              <th className="text-left">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredPayments.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center py-4 text-slate-400">
-                  No payments found.
-                </td>
-              </tr>
-            ) : (
-              filteredPayments.map(p => (
-                <tr
-                  key={p.id}
-                  onClick={() => setSelected(p)}
-                  className="border-t cursor-pointer hover:bg-slate-50"
-                >
-                  <td className="p-3 text-blue-600 font-medium">{p.id}</td>
-                  <td>{p.customer}</td>
-                  <td>{p.invoice}</td>
-                  <td className="text-right font-semibold">₹{p.amount}</td>
-                  <td>
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-semibold ${
-                        p.status === 'Completed'
-                          ? 'bg-green-100 text-green-700'
-                          : p.status === 'Pending'
-                          ? 'bg-amber-100 text-amber-700'
-                          : p.status === 'Failed'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+            <select
+              value={filterStatus}
+              onChange={e => setFilterStatus(e.target.value)}
+              className="border px-2 py-1 rounded text-sm"
+            >
+              <option value="Pending">Pending</option>
+              <option value="Completed">Completed</option>
+              <option value="Failed">Failed</option>
+              <option value="Refunded">Refunded</option>
+              <option value="All">All</option>
+            </select>
+          </div>
+
+          {loading && <p>Loading...</p>}
+
+          {!loading && filteredPayments.length === 0 && (
+            <p className="text-sm text-gray-500">No payments found</p>
+          )}
+
+          <div className="space-y-3 max-h-[500px] overflow-y-auto">
+            {filteredPayments.map(payment => (
+              <div
+                key={payment._id}
+                onClick={() => setSelected(payment)}
+                className={`p-3 border rounded cursor-pointer hover:bg-gray-50 ${
+                  selected?._id === payment._id ? "border-blue-600" : ""
+                }`}
+              >
+                <div className="flex justify-between">
+                  <div>
+                    <p className="font-medium">
+                      {payment.customerId?.name || "Unknown Customer"}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      ₹{payment.amount}
+                    </p>
+                  </div>
+
+                  <Badge className={getStatusColor(payment.status)}>
+                    {payment.status}
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
       </div>
 
-      <div className="w-1/3">
+      {/* RIGHT DETAILS */}
+      <div className="col-span-7">
         {selected ? (
-          <PaymentDetailsPanel payment={selected} onRefund={handleRefund} />
+          <Card>
+            <h2 className="text-lg font-semibold mb-4">
+              Payment Details
+            </h2>
+
+            <div className="space-y-4">
+              <Detail
+                label="Customer"
+                value={selected.customerId?.name || "-"}
+              />
+              <Detail
+                label="Email"
+                value={selected.customerId?.email || "-"}
+              />
+              <Detail
+                label="Amount"
+                value={`₹${selected.amount}`}
+              />
+              <Detail
+                label="Razorpay Payment ID"
+                value={selected.razorpayPaymentId || "-"}
+              />
+              <Detail
+                label="Razorpay Order ID"
+                value={selected.razorpayOrderId || "-"}
+              />
+              <Detail label="Status" value={selected.status} />
+
+              {selected.status === "Completed" && (
+                <Button variant="destructive" onClick={handleRefund}>
+                  Refund Payment
+                </Button>
+              )}
+            </div>
+          </Card>
         ) : (
-          <div className="bg-white border rounded-xl p-5 text-center text-slate-400">
+          <p className="text-gray-500 text-sm">
             Select a payment to view details
-          </div>
+          </p>
         )}
       </div>
     </div>
   );
-};
+}
 
-export default PaymentsReceivedView;
+function Detail({ label, value }) {
+  return (
+    <div className="flex justify-between border-b pb-2 text-sm">
+      <span className="text-gray-500">{label}</span>
+      <span className="font-medium">{value}</span>
+    </div>
+  );
+}

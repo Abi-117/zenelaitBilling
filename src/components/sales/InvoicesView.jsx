@@ -1,102 +1,101 @@
-import { useState } from 'react';
-import InvoiceListView from './InvoiceListView';
-import InvoiceDetailsPanel from './InvoiceDetailsPanel';
-import InvoiceEditorView from './InvoiceEditorView';
-import InvoicePreviewPanel from './InvoicePreviewPanel';
+import { useEffect, useState } from "react";
+import InvoiceListView from "./InvoiceListView";
+import InvoiceDetailsPanel from "./InvoiceDetailsPanel";
+import InvoiceEditorView from "./InvoiceEditorView";
 
-// Function to generate dummy invoices (same as your code)
-const generateDummyInvoices = (count = 10) => {
-  const invoices = [];
-  for (let i = 1; i <= count; i++) {
-    const items = [
-      { name: 'Product A', qty: 2, rate: 500 },
-      { name: 'Product B', qty: 1, rate: 1000 },
-    ];
-    const subtotal = items.reduce((sum, item) => sum + item.qty * item.rate, 0);
-    const tax = subtotal * 0.18;
-    invoices.push({
-      id: `INV-${1000 + i}`,
-      customerName: `Customer ${i}`,
-      date: `2026-01-${i < 10 ? '0' + i : i}`,
-      items,
-      subtotal,
-      tax,
-      total: subtotal + tax,
-      status: i % 3 === 0 ? 'Paid' : i % 3 === 1 ? 'Sent' : 'Draft',
-      customerEmail: `customer${i}@example.com`,
-      gstin: `GSTIN000${i}`,
-      gstRate: 18,
-    });
-  }
-  return invoices;
-};
+const API = "http://localhost:5000/api/invoices";
 
-const InvoicesView = () => {
-  const [invoices, setInvoices] = useState(generateDummyInvoices());
+const InvoiceView = () => {
+  const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [editingInvoice, setEditingInvoice] = useState(null);
-  const [mode, setMode] = useState('details'); // details | edit | preview
-  const [panelSize, setPanelSize] = useState({ width: 400, height: '100%' }); // NEW state
 
-  const handleSelect = (inv) => {
-    setSelectedInvoice(inv);
-    setEditingInvoice(null);
-    setMode('details');
+  const token = localStorage.getItem("token");
+
+  /* ================= FETCH INVOICES ================= */
+  const fetchInvoices = async () => {
+    const res = await fetch(API, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await res.json();
+    setInvoices(data);
   };
 
+  useEffect(() => {
+    fetchInvoices();
+  }, []);
+
+  /* ================= SELECT ================= */
+  const handleSelect = (invoice) => {
+    setSelectedInvoice(invoice);
+    setEditingInvoice(null);
+  };
+
+  /* ================= CREATE ================= */
   const handleCreate = () => {
-    const newInvoice = {
-      id: `INV-${Date.now()}`,
-      customerName: '',
-      date: '',
+    setEditingInvoice({
+      invoiceNo: `INV-${Date.now()}`,
+      customerName: "",
+      customerEmail: "",
+      gstin: "",
+      date: new Date().toISOString().split("T")[0],
       items: [],
+      gstRate: 18,
       subtotal: 0,
       tax: 0,
       total: 0,
-      status: 'Draft'
+      status: "Draft",
+    });
+  };
+
+  /* ================= SAVE ================= */
+  const handleSave = async (invoice) => {
+    const subtotal = invoice.items.reduce(
+      (s, i) => s + i.qty * i.rate,
+      0
+    );
+    const tax = subtotal * (invoice.gstRate / 100);
+    const payload = {
+      ...invoice,
+      subtotal,
+      tax,
+      total: subtotal + tax,
     };
-    setEditingInvoice(newInvoice);
-    setMode('edit');
-  };
 
-  const handleEdit = (inv) => {
-    setEditingInvoice(inv);
-    setMode('edit');
-  };
-
-  const handleSave = (updated) => {
-    const subtotal = updated.items.reduce((sum, i) => sum + i.qty * i.rate, 0);
-    const tax = subtotal * 0.18;
-    updated.subtotal = subtotal;
-    updated.tax = tax;
-    updated.total = subtotal + tax;
-
-    setInvoices(prev => {
-      const exists = prev.find(i => i.id === updated.id);
-      if (exists) return prev.map(i => i.id === updated.id ? updated : i);
-      return [...prev, updated];
+    const res = await fetch(API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
     });
 
+    const saved = await res.json();
+
+    setInvoices((prev) => [saved, ...prev]);
     setEditingInvoice(null);
-    setSelectedInvoice(updated);
-    setMode('details');
+    setSelectedInvoice(saved);
   };
 
-  const handleSend = (inv) => {
-    const updated = { ...inv, status: 'Sent' };
-    setInvoices(prev => prev.map(i => i.id === inv.id ? updated : i));
-    setSelectedInvoice(updated);
-    alert(`Invoice ${inv.id} mailed successfully`);
+  /* ================= DELETE ================= */
+  const handleDelete = async (id) => {
+    if (!confirm("Delete invoice?")) return;
+
+    await fetch(`${API}/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    setInvoices((prev) => prev.filter((i) => i._id !== id));
+    setSelectedInvoice(null);
   };
 
-  const handlePayment = (inv) => {
-    const updated = { ...inv, status: 'Paid' };
-    setInvoices(prev => prev.map(i => i.id === inv.id ? updated : i));
-    setSelectedInvoice(updated);
-  };
-
-  const handlePDF = (inv) => alert(`PDF generated for ${inv.id}`);
-
+  /* ================= EDIT MODE ================= */
   if (editingInvoice) {
     return (
       <InvoiceEditorView
@@ -110,44 +109,34 @@ const InvoicesView = () => {
 
   return (
     <div className="flex h-full">
-  {/* Left List */}
-  <div className="w-[400px] border-r">
-    <InvoiceListView
-      invoices={invoices}
-      selectedInvoice={selectedInvoice}
-      onSelect={handleSelect}
-      onCreate={handleCreate}
-    />
-  </div>
 
-  {/* Right Panel */}
-  <div className="flex-1 bg-slate-50">
-    {selectedInvoice ? (
-      mode === 'details' ? (
-        <InvoiceDetailsPanel
-          invoice={selectedInvoice}
-          onEdit={() => handleEdit(selectedInvoice)}
-          onSend={() => handleSend(selectedInvoice)}
-          onPayment={() => handlePayment(selectedInvoice)}
-          onPDF={() => handlePDF(selectedInvoice)}
-          onClose={() => setSelectedInvoice(null)}
-          onPreview={() => setMode('preview')}
+      {/* LEFT LIST */}
+      <div className="w-[380px] border-r bg-white">
+        <InvoiceListView
+          invoices={invoices}
+          selectedInvoice={selectedInvoice}
+          onSelect={handleSelect}
+          onCreate={handleCreate}
         />
-      ) : (
-        <InvoicePreviewPanel
-          invoice={selectedInvoice}
-          onBack={() => setMode('details')}
-        />
-      )
-    ) : (
-      <div className="h-full flex items-center justify-center text-slate-400">
-        Select an invoice
       </div>
-    )}
-  </div>
-</div>
 
+      {/* RIGHT DETAILS */}
+      <div className="flex-1 bg-slate-50">
+        {selectedInvoice ? (
+          <InvoiceDetailsPanel
+            invoice={selectedInvoice}
+            onEdit={() => setEditingInvoice(selectedInvoice)}
+            onDelete={() => handleDelete(selectedInvoice._id)}
+            onClose={() => setSelectedInvoice(null)}
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center text-slate-400">
+            Select an invoice
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
-export default InvoicesView;
+export default InvoiceView;

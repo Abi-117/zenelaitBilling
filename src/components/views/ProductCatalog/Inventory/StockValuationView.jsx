@@ -1,178 +1,96 @@
-import { useState } from 'react';
-import Card from '../../../ui/Card';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import Card from "../../../ui/Card";
+import { fetchStockValuation } from "../../../../services/api";
 
-const StockValuationView = () => {
-  const [inventory, setInventory] = useState([
-    { id: 1, item: 'Paracetamol 500mg', qty: 200, fifoValue: 260, avgCostValue: 250 },
-    { id: 2, item: 'Amoxicillin', qty: 120, fifoValue: 180, avgCostValue: 175 },
-  ]);
+export default function StockValuationView() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-  const [form, setForm] = useState({
-    item: '',
-    qty: '',
-    fifoValue: '',
-    avgCostValue: '',
-  });
+  // ✅ valuation date (default = today)
+  const [asOnDate, setAsOnDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
 
-  // Open Add Modal
-  const openNewItemModal = () => {
-    setEditingItem(null);
-    setForm({ item: '', qty: '', fifoValue: '', avgCostValue: '' });
-    setModalOpen(true);
-  };
+  useEffect(() => {
+    load();
+  }, [asOnDate]);
 
-  // Open Edit Modal
-  const openEditModal = item => {
-    setEditingItem(item);
-    setForm(item);
-    setModalOpen(true);
-  };
-
-  // Delete item
-  const handleDelete = id => {
-    if (confirm('Are you sure you want to delete this item?')) {
-      setInventory(prev => prev.filter(i => i.id !== id));
+  const load = async () => {
+    try {
+      setLoading(true);
+      const res = await fetchStockValuation(asOnDate);
+      setData(res || []);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to load stock valuation");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Submit Add/Edit Form
-  const handleSubmit = e => {
-    e.preventDefault();
-    if (!form.item || !form.qty || !form.fifoValue || !form.avgCostValue)
-      return alert('Please fill all fields');
+  const totalQty = data.reduce((t, i) => t + (i.quantity || 0), 0);
+  const totalFIFO = data.reduce((t, i) => t + (i.fifoValue || 0), 0);
+  const totalAVG = data.reduce((t, i) => t + (i.avgCostValue || 0), 0);
 
-    if (editingItem) {
-      setInventory(prev =>
-        prev.map(i => (i.id === editingItem.id ? { ...form, id: i.id } : i))
-      );
-    } else {
-      setInventory([...inventory, { ...form, id: Date.now() }]);
-    }
-    setModalOpen(false);
-  };
-
-  // Totals
-  const totalFIFO = inventory.reduce((sum, i) => sum + i.fifoValue * i.qty, 0);
-  const totalAvg = inventory.reduce((sum, i) => sum + i.avgCostValue * i.qty, 0);
+  if (loading) return <div className="p-6">Loading valuation...</div>;
 
   return (
-    <div className="space-y-6 p-6">
-
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">Stock Valuation</h2>
-          <p className="text-sm text-slate-500">Manage inventory values and stock</p>
-        </div>
-        <button
-          className="flex items-center space-x-2 bg-blue-600 text-white px-4 py-2 rounded-lg shadow"
-          onClick={openNewItemModal}
-        >
-          <Plus size={16} />
-          <span>New Item</span>
-        </button>
-      </div>
-
-      {/* Inventory Table */}
+    <div className="p-6 space-y-6">
       <Card>
-        <table className="w-full text-sm">
-          <thead className="border-b text-left text-slate-500">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">Stock Valuation</h2>
+
+          {/* 📅 Date Filter */}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-slate-500">As on date:</span>
+            <input
+              type="date"
+              className="input"
+              value={asOnDate}
+              onChange={(e) => setAsOnDate(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <table className="w-full border text-sm">
+          <thead className="bg-slate-100">
             <tr>
-              <th className="p-2">Item</th>
+              <th className="p-2 text-left">Item</th>
               <th className="p-2 text-center">Qty</th>
-              <th className="p-2 text-center">FIFO Value</th>
-              <th className="p-2 text-center">Avg Cost Value</th>
-              <th className="p-2 text-center">Actions</th>
+              <th className="p-2 text-right">FIFO Value</th>
+              <th className="p-2 text-right">Avg Cost Value</th>
             </tr>
           </thead>
+
           <tbody>
-            {inventory.map(i => (
-              <tr key={i.id} className="border-b hover:bg-slate-50 transition">
-                <td className="p-2 font-medium">{i.item}</td>
-                <td className="p-2 text-center">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${i.qty < 50 ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
-                    {i.qty}
-                  </span>
-                </td>
-                <td className="p-2 text-center">₹{i.fifoValue}</td>
-                <td className="p-2 text-center">₹{i.avgCostValue}</td>
-                <td className="p-2 text-center space-x-2">
-                  <button
-                    className="text-blue-600 hover:bg-blue-50 p-1 rounded"
-                    onClick={() => openEditModal(i)}
-                  >
-                    <Edit size={14} />
-                  </button>
-                  <button
-                    className="text-rose-500 hover:bg-rose-50 p-1 rounded"
-                    onClick={() => handleDelete(i.id)}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </td>
+            {data.map((i) => (
+              <tr key={i.itemId} className="border-t">
+                <td className="p-2">{i.itemName}</td>
+                <td className="p-2 text-center">{i.quantity}</td>
+                <td className="p-2 text-right">₹{i.fifoValue}</td>
+                <td className="p-2 text-right">₹{i.avgCostValue}</td>
               </tr>
             ))}
 
-            {/* Totals */}
-            <tr className="font-bold bg-slate-100">
-              <td className="p-2">Total</td>
-              <td className="p-2 text-center">{inventory.reduce((s, i) => s + i.qty, 0)}</td>
-              <td className="p-2 text-center">₹{totalFIFO}</td>
-              <td className="p-2 text-center">₹{totalAvg}</td>
-              <td></td>
-            </tr>
+            {data.length === 0 && (
+              <tr>
+                <td colSpan="4" className="p-4 text-center text-slate-500">
+                  No stock available
+                </td>
+              </tr>
+            )}
           </tbody>
+
+          <tfoot className="bg-slate-50 font-semibold">
+            <tr>
+              <td className="p-2">Total</td>
+              <td className="p-2 text-center">{totalQty}</td>
+              <td className="p-2 text-right">₹{totalFIFO}</td>
+              <td className="p-2 text-right">₹{totalAVG}</td>
+            </tr>
+          </tfoot>
         </table>
       </Card>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">
-          <div className="bg-white rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">{editingItem ? 'Edit Item' : 'New Item'}</h2>
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <input
-                type="text"
-                placeholder="Item Name"
-                className="w-full border px-3 py-2 rounded"
-                value={form.item}
-                onChange={e => setForm({ ...form, item: e.target.value })}
-              />
-              <input
-                type="number"
-                placeholder="Quantity"
-                className="w-full border px-3 py-2 rounded"
-                value={form.qty}
-                onChange={e => setForm({ ...form, qty: Number(e.target.value) })}
-              />
-              <input
-                type="number"
-                placeholder="FIFO Value"
-                className="w-full border px-3 py-2 rounded"
-                value={form.fifoValue}
-                onChange={e => setForm({ ...form, fifoValue: Number(e.target.value) })}
-              />
-              <input
-                type="number"
-                placeholder="Avg Cost Value"
-                className="w-full border px-3 py-2 rounded"
-                value={form.avgCostValue}
-                onChange={e => setForm({ ...form, avgCostValue: Number(e.target.value) })}
-              />
-              <div className="flex justify-end space-x-2 mt-4">
-                <button type="button" className="px-4 py-2 rounded bg-gray-200" onClick={() => setModalOpen(false)}>Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded bg-blue-600 text-white">{editingItem ? 'Update' : 'Add'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
     </div>
   );
-};
-
-export default StockValuationView;
+}

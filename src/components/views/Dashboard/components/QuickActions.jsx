@@ -1,30 +1,26 @@
-import { Plus } from 'lucide-react';
+// QuickActions.jsx
+import { Plus } from "lucide-react";
 
-const QuickActions = ({ onInvoice, onCustomer, onSubscription }) => {
+const QuickActions = ({ setActiveTab }) => {
   return (
     <div className="bg-white p-5 rounded-xl border shadow-sm">
       <h3 className="font-semibold mb-4">Quick Actions</h3>
 
-      <div className="flex flex-wrap gap-3">
+      <div className="flex gap-3">
+        {/* Go to Sales → Invoices */}
         <button
-          onClick={onInvoice}
-          className="btn-primary"
+          onClick={() => setActiveTab("invoices")}
+          className="btn-primary flex items-center gap-2"
         >
           <Plus size={16} /> Create Invoice
         </button>
 
+        {/* Go to Customers */}
         <button
-          onClick={onCustomer}
-          className="btn-success"
+          onClick={() => setActiveTab("customers")}
+          className="btn-success flex items-center gap-2"
         >
           <Plus size={16} /> Add Customer
-        </button>
-
-        <button
-          onClick={onSubscription}
-          className="btn-violet"
-        >
-          <Plus size={16} /> New Subscription
         </button>
       </div>
     </div>

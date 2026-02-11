@@ -1,56 +1,59 @@
-import { useState } from 'react';
-import { Search } from 'lucide-react';
+import { useState, useMemo } from "react";
+import { Search } from "lucide-react";
 
-const SupplierOutstandingView = () => {
-  const [search, setSearch] = useState('');
+const SupplierOutstandingView = ({ bills = [] }) => {
+  const [search, setSearch] = useState("");
 
-  // 🔹 ZOHO-LIKE OUTSTANDING DATA
-  const outstanding = [
-    {
-      supplier: 'ABC Suppliers',
-      bills: 3,
-      amount: 18500,
-      aging: {
-        '0-30': 8500,
-        '31-60': 6000,
-        '60+': 4000,
-      },
-    },
-    {
-      supplier: 'XYZ Traders',
-      bills: 1,
-      amount: 4200,
-      aging: {
-        '0-30': 4200,
-        '31-60': 0,
-        '60+': 0,
-      },
-    },
-    {
-      supplier: 'Global Stationers',
-      bills: 2,
-      amount: 9600,
-      aging: {
-        '0-30': 3000,
-        '31-60': 6600,
-        '60+': 0,
-      },
-    },
-  ];
+  /* ---------------- BUILD OUTSTANDING SAFELY ---------------- */
+  const outstanding = useMemo(() => {
+    return (Array.isArray(bills) ? bills : []).reduce((acc, b) => {
+      // 🛡️ HARD SAFETY (this is the key)
+      const supplier =
+        b?.supplier && typeof b.supplier === "object"
+          ? b.supplier.name || "Unknown Supplier"
+          : b?.supplier || "Unknown Supplier";
 
-  const filtered = outstanding.filter(o =>
-    o.supplier.toLowerCase().includes(search.toLowerCase())
-  );
+      if (!acc[supplier]) {
+        acc[supplier] = {
+          supplier,
+          bills: 0,
+          amount: 0,
+          aging: { "0-30": 0, "31-60": 0, "60+": 0 },
+        };
+      }
+
+      if (b?.status !== "Paid") {
+        const total = Number(b?.total || b?.grandTotal || 0);
+        acc[supplier].bills += 1;
+        acc[supplier].amount += total;
+        acc[supplier].aging["0-30"] += total;
+      }
+
+      return acc;
+    }, {});
+  }, [bills]);
+
+  /* ---------------- FILTER ---------------- */
+  const filtered = useMemo(() => {
+    return Object.values(outstanding)
+      .filter((o) =>
+        (o.supplier || "")
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      )
+      .sort((a, b) => a.supplier.localeCompare(b.supplier));
+  }, [outstanding, search]);
 
   const totalOutstanding = filtered.reduce(
     (sum, o) => sum + o.amount,
     0
   );
 
+  const formatAmount = (amt) => `₹${(amt || 0).toFixed(2)}`;
+
+  /* ---------------- UI ---------------- */
   return (
     <div className="space-y-6">
-
-      {/* HEADER */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold">Supplier Outstanding</h2>
@@ -65,37 +68,27 @@ const SupplierOutstandingView = () => {
             placeholder="Search supplier"
             className="outline-none"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={(e) => setSearch(e.target.value)}
           />
         </div>
       </div>
 
-      {/* TABLE */}
       <div className="bg-white rounded-xl shadow overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-100 text-slate-600">
             <tr>
               <th className="p-3 text-left">Supplier</th>
               <th className="p-3 text-center">Bills</th>
-              <th className="p-3 text-right">0–30 Days</th>
-              <th className="p-3 text-right">31–60 Days</th>
-              <th className="p-3 text-right">60+ Days</th>
               <th className="p-3 text-right">Outstanding</th>
             </tr>
           </thead>
-
           <tbody>
             {filtered.map((row, i) => (
-              <tr key={i} className="border-b hover:bg-slate-50">
+              <tr key={i} className="border-b">
                 <td className="p-3 font-medium">{row.supplier}</td>
                 <td className="p-3 text-center">{row.bills}</td>
-                <td className="p-3 text-right">₹{row.aging['0-30']}</td>
-                <td className="p-3 text-right">₹{row.aging['31-60']}</td>
-                <td className="p-3 text-right text-rose-600">
-                  ₹{row.aging['60+']}
-                </td>
                 <td className="p-3 text-right font-bold text-rose-600">
-                  ₹{row.amount}
+                  {formatAmount(row.amount)}
                 </td>
               </tr>
             ))}
@@ -103,16 +96,12 @@ const SupplierOutstandingView = () => {
         </table>
       </div>
 
-      {/* SUMMARY */}
-      <div className="bg-slate-50 rounded-xl p-4 flex justify-between items-center">
-        <span className="text-sm font-semibold">
-          Total Outstanding Payable
-        </span>
-        <span className="text-lg font-bold text-rose-600">
-          ₹{totalOutstanding}
+      <div className="bg-slate-50 rounded-xl p-4 flex justify-between font-semibold">
+        <span>Total Outstanding</span>
+        <span className="text-rose-600">
+          {formatAmount(totalOutstanding)}
         </span>
       </div>
-
     </div>
   );
 };

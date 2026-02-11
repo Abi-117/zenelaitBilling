@@ -2,9 +2,9 @@ import { TrendingUp, TrendingDown } from 'lucide-react';
 
 const SummaryCard = ({
   title,
-  value,
+  value = 0,
   suffix = '',
-  change = null,        // % change (number)
+  change = null,       // % change (number)
   period = 'Year To Date',
 }) => {
   const isPositive = change >= 0;
@@ -22,33 +22,27 @@ const SummaryCard = ({
         </span>
       </div>
 
-      {/* Value */}
+      {/* Value and Change */}
       <div className="flex items-end gap-2">
         <p className="text-2xl font-bold">
-          {value}{suffix}
+          {value?.toLocaleString()}{suffix}
         </p>
 
-        {change !== null && (
+        {change !== null && !isNaN(change) && (
           <span
             className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full
-            ${
-              isPositive
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-rose-100 text-rose-700'
-            }`}
+            ${isPositive
+              ? 'bg-emerald-100 text-emerald-700'
+              : 'bg-rose-100 text-rose-700'}`}
           >
-            {isPositive ? (
-              <TrendingUp size={12} />
-            ) : (
-              <TrendingDown size={12} />
-            )}
+            {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
             {Math.abs(change)}%
           </span>
         )}
       </div>
 
       {/* Footer */}
-      {change !== null && (
+      {change !== null && !isNaN(change) && (
         <p className="text-xs text-slate-500 mt-2">
           Year on Year
         </p>

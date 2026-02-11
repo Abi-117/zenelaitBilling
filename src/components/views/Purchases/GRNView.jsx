@@ -1,211 +1,353 @@
-import { useState } from 'react';
-import { PackageCheck, Truck, FileText } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  fetchSuppliers,
+  fetchGRNs,
+  createGRN,
+  updateGRN,
+  deleteGRN,
+  createPurchaseBillFromGRN,
+} from "../../../services/api";
 
-const GRNView = () => {
-  const [grns, setGrns] = useState([
-    {
-      id: 'GRN-1001',
-      supplier: 'ABC Suppliers',
-      poNo: 'PO-21001',
-      date: '2026-01-12',
-      status: 'Draft',
-      purchaseBillId: null,
-      taxRate: 18,
-      items: [
-        { id: 1, name: 'Printer Paper A4', qty: 50, rate: 180 },
-        { id: 2, name: 'Ink Cartridge HP', qty: 30, rate: 520 },
-        { id: 3, name: 'Stapler', qty: 10, rate: 150 },
-      ],
-    },
-    {
-      id: 'GRN-1002',
-      supplier: 'Metro Steels',
-      poNo: 'PO-21002',
-      date: '2026-01-15',
-      status: 'Billed',
-      purchaseBillId: 'PB-2001',
-      taxRate: 18,
-      items: [
-        { id: 4, name: 'Steel Rod 12mm', qty: 60, rate: 1150 },
-        { id: 5, name: 'Steel Sheet 6mm', qty: 30, rate: 980 },
-      ],
-    },
-    {
-      id: 'GRN-1003',
-      supplier: 'TechZone Pvt Ltd',
-      poNo: 'PO-21003',
-      date: '2026-01-18',
-      status: 'Draft',
-      purchaseBillId: null,
-      taxRate: 18,
-      items: [
-        { id: 6, name: 'Laptop Charger', qty: 15, rate: 2200 },
-        { id: 7, name: 'HDMI Cable', qty: 25, rate: 450 },
-        { id: 8, name: 'Keyboard', qty: 20, rate: 850 },
-      ],
-    },
-    {
-      id: 'GRN-1004',
-      supplier: 'OfficeMart',
-      poNo: 'PO-21004',
-      date: '2026-01-20',
-      status: 'Billed',
-      purchaseBillId: 'PB-2002',
-      taxRate: 18,
-      items: [
-        { id: 9, name: 'Office Chair', qty: 8, rate: 5200 },
-        { id: 10, name: 'Desk Lamp', qty: 12, rate: 950 },
-      ],
-    },
-    {
-      id: 'GRN-1005',
-      supplier: 'PowerGrid Electricals',
-      poNo: 'PO-21005',
-      date: '2026-01-22',
-      status: 'Draft',
-      purchaseBillId: null,
-      taxRate: 18,
-      items: [
-        { id: 11, name: 'Copper Wire Roll', qty: 5, rate: 7800 },
-        { id: 12, name: 'Switch Board', qty: 30, rate: 320 },
-      ],
-    },
-    {
-      id: 'GRN-1006',
-      supplier: 'Packaging World',
-      poNo: 'PO-21006',
-      date: '2026-01-25',
-      status: 'Billed',
-      purchaseBillId: 'PB-2003',
-      taxRate: 12,
-      items: [
-        { id: 13, name: 'Corrugated Box', qty: 200, rate: 45 },
-        { id: 14, name: 'Bubble Wrap Roll', qty: 10, rate: 850 },
-      ],
-    },
-  ]);
+/* ---------------- PO AUTO GENERATOR ---------------- */
+const generatePONumber = () => {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `PO-${year}-${rand}`;
+};
 
-  const [selectedGRN, setSelectedGRN] = useState(null);
+/* ---------------- TODAY DATE ---------------- */
+const today = new Date().toISOString().split("T")[0];
 
-  const calculateSubtotal = items => items.reduce((sum, i) => sum + i.qty * i.rate, 0);
-  const calculateTax = (subtotal, rate) => (subtotal * rate) / 100;
+export default function GRNView() {
+  const navigate = useNavigate();
 
-  const convertToPurchaseBill = grn => {
-    if (grn.status === 'Billed') return;
+  /* ---------------- STATES ---------------- */
+  const [suppliers, setSuppliers] = useState([]);
+  const [grns, setGrns] = useState([]);
 
-    const pbId = `PB-${Date.now()}`;
-    setGrns(prev =>
-      prev.map(g =>
-        g.id === grn.id ? { ...g, status: 'Billed', purchaseBillId: pbId } : g
-      )
-    );
-    setSelectedGRN({ ...grn, status: 'Billed', purchaseBillId: pbId });
+  // Create new GRN
+  const [newGRN, setNewGRN] = useState({
+    supplier: "",
+    poNo: generatePONumber(),
+    grnDate: today,
+    items: [{ name: "", qty: 1, rate: 0 }],
+  });
+
+  // Edit/View GRN
+  const [editingGRN, setEditingGRN] = useState(null);
+
+  /* ---------------- FETCH DATA ---------------- */
+  useEffect(() => {
+    fetchSuppliers().then(setSuppliers).catch(console.error);
+    fetchGRNs().then(setGrns).catch(console.error);
+  }, []);
+
+  /* ---------------- TOTAL CALC ---------------- */
+  const calcTotal = (items) => items.reduce((s, i) => s + i.qty * i.rate, 0);
+
+  /* ---------------- FORM HANDLERS ---------------- */
+  const handleItemChange = (form, setForm, index, key, value) => {
+    const updated = [...form.items];
+    updated[index][key] = key === "name" ? value : Number(value);
+    setForm({ ...form, items: updated });
+  };
+
+  const addItem = (form, setForm) =>
+    setForm({ ...form, items: [...form.items, { name: "", qty: 1, rate: 0 }] });
+
+  const removeItem = (form, setForm, index) =>
+    setForm({ ...form, items: form.items.filter((_, i) => i !== index) });
+
+  /* ---------------- SAVE / UPDATE ---------------- */
+  const saveGRN = async (form, setForm, editing = false) => {
+    if (!form.supplier) return alert("Select supplier");
+    if (form.items.some((i) => !i.name || i.qty <= 0 || i.rate < 0))
+      return alert("Invalid items");
+
+    const payload = { ...form, total: calcTotal(form.items) };
+
+    try {
+      if (editing) {
+        const updated = await updateGRN(editingGRN._id, payload);
+        setGrns((prev) =>
+          prev.map((g) => (g._id === editingGRN._id ? updated : g))
+        );
+        setEditingGRN(null);
+      } else {
+        const created = await createGRN(payload);
+        setGrns((prev) => [created, ...prev]);
+      }
+
+      // Reset form
+      setForm({
+        supplier: "",
+        poNo: generatePONumber(),
+        grnDate: today,
+        items: [{ name: "", qty: 1, rate: 0 }],
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save GRN");
+    }
+  };
+
+  /* ---------------- EDIT / VIEW ---------------- */
+  const openGRN = (grn) => {
+    setEditingGRN(grn);
+  };
+
+  const isReadOnly = editingGRN?.status === "Billed";
+
+  /* ---------------- DELETE ---------------- */
+  const removeGRN = async (id) => {
+    if (!confirm("Delete GRN?")) return;
+    try {
+      await deleteGRN(id);
+      setGrns((prev) => prev.filter((g) => g._id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete GRN");
+    }
+  };
+
+  /* ---------------- CREATE BILL ---------------- */
+  const createBill = async (id) => {
+    try {
+      const updated = await createPurchaseBillFromGRN(id);
+      setGrns((prev) => prev.map((g) => (g._id === id ? updated : g)));
+      navigate("/purchase-bills");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create bill");
+    }
   };
 
   return (
-    <div className="flex gap-6 p-6">
+    <div className="p-6 space-y-6 bg-slate-50 min-h-screen">
+      <h2 className="text-2xl font-semibold">Goods Receipt Notes</h2>
 
-      {/* LEFT PANEL – GRN LIST */}
-      <div className="w-2/3">
-        <h2 className="text-xl font-bold flex items-center gap-2 mb-4">
-          <Truck size={18} /> Goods Received Notes
-        </h2>
+      {/* ---------------- CREATE NEW GRN ---------------- */}
+      <div className="bg-white shadow rounded p-6 space-y-4">
+        <h3 className="text-lg font-semibold">Create New GRN</h3>
 
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-100 text-slate-600">
-              <tr>
-                <th className="p-3 text-left">GRN No</th>
-                <th className="p-3">Supplier</th>
-                <th className="p-3">Date</th>
-                <th className="p-3 text-right">Amount</th>
-                <th className="p-3 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grns.map(grn => {
-                const subtotal = calculateSubtotal(grn.items);
-                const total = subtotal + calculateTax(subtotal, grn.taxRate);
-                return (
-                  <tr key={grn.id} onClick={() => setSelectedGRN(grn)} className="border-b hover:bg-slate-50 cursor-pointer">
-                    <td className="p-3 font-medium">{grn.id}</td>
-                    <td className="p-3">{grn.supplier}</td>
-                    <td className="p-3">{grn.date}</td>
-                    <td className="p-3 text-right font-semibold">₹{total}</td>
-                    <td className="p-3 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold ${grn.status === 'Draft' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {grn.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <select
+          className="border p-2 rounded w-full"
+          value={newGRN.supplier}
+          onChange={(e) => setNewGRN({ ...newGRN, supplier: e.target.value })}
+        >
+          <option value="">Select Supplier</option>
+          {suppliers.map((s) => (
+            <option key={s._id} value={s._id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+
+        <input
+          type="date"
+          className="border p-2 rounded w-full"
+          value={newGRN.grnDate}
+          onChange={(e) => setNewGRN({ ...newGRN, grnDate: e.target.value })}
+        />
+
+        <input
+          className="border p-2 rounded w-full bg-slate-100 text-slate-700"
+          value={newGRN.poNo}
+          readOnly
+        />
+
+        {newGRN.items.map((item, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input
+              className="border p-2 rounded flex-1"
+              placeholder="Item"
+              value={item.name}
+              onChange={(e) =>
+                handleItemChange(newGRN, setNewGRN, i, "name", e.target.value)
+              }
+            />
+            <input
+              type="number"
+              className="border p-2 rounded w-20"
+              value={item.qty}
+              onChange={(e) =>
+                handleItemChange(newGRN, setNewGRN, i, "qty", e.target.value)
+              }
+            />
+            <input
+              type="number"
+              className="border p-2 rounded w-24"
+              value={item.rate}
+              onChange={(e) =>
+                handleItemChange(newGRN, setNewGRN, i, "rate", e.target.value)
+              }
+            />
+            <span className="w-20 text-right">₹{item.qty * item.rate}</span>
+            <button
+              onClick={() => removeItem(newGRN, setNewGRN, i)}
+              className="text-red-600"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+
+        <div className="flex justify-between">
+          <button onClick={() => addItem(newGRN, setNewGRN)} className="text-blue-600">
+            + Add Item
+          </button>
+          <strong>Total: ₹{calcTotal(newGRN.items)}</strong>
         </div>
+
+        <button
+          onClick={() => saveGRN(newGRN, setNewGRN)}
+          className="bg-green-600 text-white px-4 py-2 rounded"
+        >
+          Save GRN
+        </button>
       </div>
 
-      {/* RIGHT PANEL – GRN DETAILS */}
-      {selectedGRN && (
-        <div className="w-1/3 bg-white rounded-xl shadow p-4">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold">{selectedGRN.id}</h3>
-            <button onClick={() => setSelectedGRN(null)} className="text-sm text-slate-500">Close</button>
-          </div>
+      {/* ---------------- EDIT / VIEW GRN ---------------- */}
+      {editingGRN && (
+        <div className="bg-white shadow rounded p-6 space-y-4">
+          <h3 className="text-lg font-semibold">
+            {isReadOnly ? "View GRN (Billed)" : "Edit GRN"}
+          </h3>
 
-          <div className="text-sm space-y-1 mb-2">
-            <p><b>Supplier:</b> {selectedGRN.supplier}</p>
-            <p><b>PO No:</b> {selectedGRN.poNo}</p>
-            <p><b>Date:</b> {selectedGRN.date}</p>
-          </div>
+          <select
+            className="border p-2 rounded w-full"
+            value={editingGRN.supplier?._id || ""}
+            onChange={(e) => setEditingGRN({ ...editingGRN, supplier: { _id: e.target.value } })}
+            disabled={isReadOnly}
+          >
+            <option value="">Select Supplier</option>
+            {suppliers.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
 
-          <table className="w-full text-sm border-t mb-2">
-            <thead className="text-slate-500">
-              <tr>
-                <th className="text-left">Item</th>
-                <th className="text-center">Qty</th>
-                <th className="text-right">Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {selectedGRN.items.map(i => (
-                <tr key={i.id}>
-                  <td>{i.name}</td>
-                  <td className="text-center">{i.qty}</td>
-                  <td className="text-right">₹{i.rate}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <input
+            type="date"
+            className="border p-2 rounded w-full"
+            value={editingGRN.grnDate?.split("T")[0] || ""}
+            onChange={(e) => setEditingGRN({ ...editingGRN, grnDate: e.target.value })}
+            disabled={isReadOnly}
+          />
 
-          {/* TOTALS */}
-          {(() => {
-            const subtotal = calculateSubtotal(selectedGRN.items);
-            const tax = calculateTax(subtotal, selectedGRN.taxRate);
-            return (
-              <div className="border-t pt-2 space-y-1 text-sm">
-                <p className="flex justify-between"><span>Subtotal</span><span>₹{subtotal}</span></p>
-                <p className="flex justify-between"><span>GST ({selectedGRN.taxRate}%)</span><span>₹{tax}</span></p>
-                <p className="flex justify-between font-bold text-lg"><span>Total</span><span>₹{subtotal + tax}</span></p>
-              </div>
-            );
-          })()}
+          <input
+            className="border p-2 rounded w-full bg-slate-100 text-slate-700"
+            value={editingGRN.poNo}
+            readOnly
+          />
 
-          {selectedGRN.status === 'Draft' && (
-            <button onClick={() => convertToPurchaseBill(selectedGRN)} className="w-full bg-emerald-600 text-white py-2 mt-3 rounded-lg flex items-center justify-center gap-2">
-              <PackageCheck size={16} /> Convert to Purchase Bill
-            </button>
-          )}
-
-          {selectedGRN.status === 'Billed' && (
-            <div className="mt-2 text-emerald-600 font-bold flex items-center gap-2">
-              <FileText size={14} /> Purchase Bill Created ({selectedGRN.purchaseBillId})
+          {editingGRN.items?.map((item, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <input
+                className="border p-2 rounded flex-1"
+                placeholder="Item"
+                value={item.name}
+                onChange={(e) => {
+                  if (!isReadOnly) {
+                    const updatedItems = [...editingGRN.items];
+                    updatedItems[i].name = e.target.value;
+                    setEditingGRN({ ...editingGRN, items: updatedItems });
+                  }
+                }}
+                disabled={isReadOnly}
+              />
+              <input
+                type="number"
+                className="border p-2 rounded w-20"
+                value={item.qty}
+                onChange={(e) => {
+                  if (!isReadOnly) {
+                    const updatedItems = [...editingGRN.items];
+                    updatedItems[i].qty = Number(e.target.value);
+                    setEditingGRN({ ...editingGRN, items: updatedItems });
+                  }
+                }}
+                disabled={isReadOnly}
+              />
+              <input
+                type="number"
+                className="border p-2 rounded w-24"
+                value={item.rate}
+                onChange={(e) => {
+                  if (!isReadOnly) {
+                    const updatedItems = [...editingGRN.items];
+                    updatedItems[i].rate = Number(e.target.value);
+                    setEditingGRN({ ...editingGRN, items: updatedItems });
+                  }
+                }}
+                disabled={isReadOnly}
+              />
+              <span className="w-20 text-right">₹{item.qty * item.rate}</span>
             </div>
+          ))}
+
+          {!isReadOnly && (
+            <button
+              onClick={() => saveGRN(editingGRN, setEditingGRN, true)}
+              className="bg-green-600 text-white px-4 py-2 rounded"
+            >
+              Update GRN
+            </button>
           )}
         </div>
       )}
+
+      {/* ---------------- TABLE ---------------- */}
+      <div className="bg-white shadow rounded p-4">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-100">
+            <tr>
+              <th className="p-2">GRN No</th>
+              <th>Supplier</th>
+              <th>Date</th>
+              <th>Status</th>
+              <th>Total</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {grns.map((g) => (
+              <tr key={g._id} className="border-b">
+                <td className="p-2">{g.grnNo}</td>
+                <td>{g.supplier?.name}</td>
+                <td>{new Date(g.grnDate || g.createdAt).toLocaleDateString()}</td>
+                <td>
+                  <span
+                    className={`px-2 py-1 rounded text-xs ${
+                      g.status === "Billed"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {g.status}
+                  </span>
+                </td>
+                <td>₹{calcTotal(g.items)}</td>
+                <td className="space-x-2">
+                  <button onClick={() => openGRN(g)} className="text-blue-600">
+                    {g.status === "Billed" ? "View" : "Edit"}
+                  </button>
+                  <button onClick={() => removeGRN(g._id)} className="text-red-600">
+                    Delete
+                  </button>
+                  {g.status === "Pending" && (
+                    <button onClick={() => createBill(g._id)} className="text-green-600">
+                      Create Bill
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
-};
-
-export default GRNView;
+}
